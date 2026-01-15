@@ -1,0 +1,1860 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模糊隶属度函数仿真实验</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            color: #333;
+            line-height: 1.5;
+            padding: 10px;
+            font-size: 0.9rem;
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #4a6fa5;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            color: #2c3e50;
+            margin-bottom: 5px;
+            font-size: 1.8rem;
+        }
+        
+        .subtitle {
+            color: #4a6fa5;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+        
+        .description {
+            background-color: #e8f4fc;
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: 0.9rem;
+            border-left: 4px solid #4a6fa5;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .control-panel, .visualization-panel {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            transition: transform 0.3s ease;
+        }
+        
+        .control-panel:hover, .visualization-panel:hover {
+            transform: translateY(-2px);
+        }
+        
+        .control-panel h2, .visualization-panel h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #4a6fa5;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .function-selector {
+            margin-bottom: 20px;
+        }
+        
+        .function-list {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        
+        .func-btn {
+            padding: 10px 5px;
+            background-color: #e8f4fc;
+            border: 2px solid #b8d4f0;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            font-weight: 600;
+            color: #2c3e50;
+            font-size: 0.85rem;
+        }
+        
+        .func-btn:hover {
+            background-color: #d0e6f7;
+            transform: scale(1.03);
+        }
+        
+        .func-btn.active {
+            background-color: #4a6fa5;
+            color: white;
+            border-color: #2c3e50;
+            box-shadow: 0 3px 8px rgba(74, 111, 165, 0.3);
+        }
+        
+        .function-detail {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            border-left: 4px solid #4a6fa5;
+            transition: all 0.3s ease;
+        }
+        
+        .function-detail h3 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .function-detail p {
+            margin-bottom: 10px;
+            font-size: 0.85rem;
+            line-height: 1.4;
+        }
+        
+        .function-expression {
+            font-family: 'Courier New', monospace;
+            background-color: #f0f7ff;
+            padding: 8px 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            border: 1px solid #d0e6f7;
+        }
+        
+        .parameter-controls {
+            margin-top: 15px;
+        }
+        
+        .input-group {
+            margin-bottom: 12px;
+        }
+        
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #4a6fa5;
+            font-size: 0.9rem;
+        }
+        
+        .param-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 10px;
+        }
+        
+        .param-row label {
+            min-width: 70px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .param-row input[type="range"] {
+            flex-grow: 1;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        .param-row input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #4a6fa5;
+            cursor: pointer;
+            border: 2px solid white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+        }
+        
+        .param-row input[type="number"] {
+            width: 80px;
+            padding: 6px 8px;
+            font-size: 0.85rem;
+            border: 1px solid #b8d4f0;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .preset-btn {
+            padding: 8px 5px;
+            background-color: #f0f7ff;
+            border: 1px solid #b8d4f0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.8rem;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .preset-btn:hover {
+            background-color: #d0e6f7;
+            transform: translateY(-2px);
+        }
+        
+        .chart-container {
+            height: 350px;
+            position: relative;
+        }
+        
+        .chart-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            border: 1px solid #e0e0e0;
+        }
+        
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px dashed #e0e0e0;
+        }
+        
+        .info-row:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #4a6fa5;
+        }
+        
+        .info-value {
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+        
+        .comparison-panel {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+            margin-top: 20px;
+        }
+        
+        .comparison-container {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .comparison-box {
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 15px;
+            text-align: center;
+            font-size: 0.85rem;
+            border: 1px solid #e0e0e0;
+            transition: transform 0.3s ease;
+        }
+        
+        .comparison-box:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .comparison-box h3 {
+            color: #2c3e50;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        
+        .comparison-box p {
+            margin-bottom: 5px;
+        }
+        
+        .footer-note {
+            text-align: center;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid #b8d4f0;
+            color: #666;
+            font-size: 0.85rem;
+            padding-bottom: 10px;
+        }
+        
+        .btn {
+            display: inline-block;
+            padding: 10px 18px;
+            background-color: #4a6fa5;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+            font-size: 0.9rem;
+            box-shadow: 0 3px 8px rgba(74, 111, 165, 0.3);
+        }
+        
+        .btn:hover {
+            background-color: #3a5a80;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 12px rgba(74, 111, 165, 0.4);
+        }
+        
+        .btn:active {
+            transform: translateY(0);
+        }
+        
+        .animation-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .animation-btn {
+            padding: 8px 12px;
+            background-color: #f0f7ff;
+            border: 1px solid #b8d4f0;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 0.85rem;
+        }
+        
+        .animation-btn:hover {
+            background-color: #d0e6f7;
+        }
+        
+        .highlight {
+            background-color: #e8f4fc;
+            padding: 3px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .math-expression {
+            font-family: 'Times New Roman', serif;
+            font-style: italic;
+            font-size: 0.95rem;
+            margin: 8px 0;
+            padding: 8px 10px;
+            background-color: #f8f9fa;
+            border-left: 4px solid #6c757d;
+            border-radius: 0 5px 5px 0;
+        }
+        
+        .piecewise-function {
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            background-color: #f8f9fa;
+            padding: 10px 12px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border-left: 4px solid #6c757d;
+            line-height: 1.4;
+            overflow-x: auto;
+        }
+        
+        .important-note {
+            background-color: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 5px;
+            padding: 10px 12px;
+            margin: 10px 0;
+            font-size: 0.85rem;
+        }
+        
+        @media (max-width: 1100px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .comparison-container {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .chart-container {
+                height: 300px;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .comparison-container {
+                grid-template-columns: 1fr;
+            }
+            
+            .function-list {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            body {
+                padding: 8px;
+            }
+            
+            .control-panel, .visualization-panel, .comparison-panel {
+                padding: 15px;
+            }
+            
+            h1 {
+                font-size: 1.5rem;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .function-list {
+                grid-template-columns: 1fr;
+            }
+            
+            .preset-buttons {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            
+            .param-row {
+                flex-wrap: wrap;
+            }
+            
+            .param-row label {
+                min-width: 100%;
+                margin-bottom: 5px;
+            }
+        }
+        
+        .function-info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .function-info-item {
+            background-color: #f0f7ff;
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            border: 1px solid #d0e6f7;
+        }
+        
+        .function-info-item .label {
+            font-weight: 600;
+            color: #4a6fa5;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-chart-line"></i> 模糊隶属度函数仿真实验</h1>
+            <p class="subtitle">MATLAB 11种隶属度函数交互式演示</p>
+        </header>
+        
+        <div class="description">
+            <p>本实验展示MATLAB模糊逻辑工具箱中的11种隶属度函数。选择函数类型，调整参数，观察函数形状的动态变化。</p>
+            <p>论域范围：<span class="highlight">-10 到 10</span>，隶属度范围：<span class="highlight">0 到 1</span></p>
+        </div>
+        
+        <div class="main-content">
+            <div class="control-panel">
+                <h2><i class="fas fa-sliders-h"></i> 函数控制面板</h2>
+                
+                <div class="function-selector">
+                    <div style="margin-bottom: 10px; font-weight: 600; color: #4a6fa5; font-size: 0.95rem;">选择隶属度函数：</div>
+                    <div class="function-list">
+                        <div class="func-btn active" data-func="gaussmf">高斯型</div>
+                        <div class="func-btn" data-func="gbellmf">广义钟形</div>
+                        <div class="func-btn" data-func="trimf">三角形</div>
+                        <div class="func-btn" data-func="trapmf">梯形</div>
+                        <div class="func-btn" data-func="sigmf">S形</div>
+                        <div class="func-btn" data-func="dsigmf">双S形</div>
+                        <div class="func-btn" data-func="psigmf">双S形乘积</div>
+                        <div class="func-btn" data-func="zmf">Z形</div>
+                        <div class="func-btn" data-func="smf">S状</div>
+                        <div class="func-btn" data-func="gauss2mf">联合高斯型</div>
+                        <div class="func-btn" data-func="pimf">II型</div>
+                    </div>
+                </div>
+                
+                <!-- 高斯型隶属函数 (gaussmf) -->
+                <div id="gaussmf-detail" class="function-detail">
+                    <h3><i class="fas fa-chart-area"></i> 高斯型隶属函数 (gaussmf)</h3>
+                    <p>高斯函数，对称钟形曲线，由宽度σ和中心c控制。</p>
+                    <div class="function-expression">f(x; σ, c) = exp(-(x - c)²/(2σ²))</div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="gaussmf-sigma">σ (宽度):</label>
+                            <input type="range" id="gaussmf-sigma" min="0.5" max="5" step="0.1" value="2">
+                            <input type="number" id="gaussmf-sigma-val" min="0.5" max="5" step="0.1" value="2">
+                        </div>
+                        <div class="param-row">
+                            <label for="gaussmf-c">c (中心):</label>
+                            <input type="range" id="gaussmf-c" min="-10" max="10" step="0.1" value="0">
+                            <input type="number" id="gaussmf-c-val" min="-10" max="10" step="0.1" value="0">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">窄高峰</div>
+                        <div class="preset-btn" data-preset="2">宽低峰</div>
+                        <div class="preset-btn" data-preset="3">左偏峰</div>
+                    </div>
+                </div>
+                
+                <!-- 广义钟形隶属函数 (gbellmf) -->
+                <div id="gbellmf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-bell"></i> 广义钟形隶属函数 (gbellmf)</h3>
+                    <p>广义钟形函数，由宽度a、形状b和中心c控制。</p>
+                    <div class="function-expression">f(x; a, b, c) = 1 / (1 + |(x - c)/a|^(2b))</div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="gbellmf-a">a (宽度):</label>
+                            <input type="range" id="gbellmf-a" min="1" max="8" step="0.1" value="3">
+                            <input type="number" id="gbellmf-a-val" min="1" max="8" step="0.1" value="3">
+                        </div>
+                        <div class="param-row">
+                            <label for="gbellmf-b">b (形状):</label>
+                            <input type="range" id="gbellmf-b" min="1" max="8" step="0.1" value="3">
+                            <input type="number" id="gbellmf-b-val" min="1" max="8" step="0.1" value="3">
+                        </div>
+                        <div class="param-row">
+                            <label for="gbellmf-c">c (中心):</label>
+                            <input type="range" id="gbellmf-c" min="-10" max="10" step="0.1" value="0">
+                            <input type="number" id="gbellmf-c-val" min="-10" max="10" step="0.1" value="0">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">尖峰</div>
+                        <div class="preset-btn" data-preset="2">平顶</div>
+                        <div class="preset-btn" data-preset="3">缓坡</div>
+                    </div>
+                </div>
+                
+                <!-- 三角形隶属函数 (trimf) -->
+                <div id="trimf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-play"></i> 三角形隶属函数 (trimf)</h3>
+                    <p>三角形函数，由三个点a、b、c定义，b为顶点。</p>
+                    <div class="function-expression">f(x; a, b, c) = max(0, min((x-a)/(b-a), (c-x)/(c-b)))</div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="trimf-a">a (左):</label>
+                            <input type="range" id="trimf-a" min="-10" max="10" step="0.1" value="-3">
+                            <input type="number" id="trimf-a-val" min="-10" max="10" step="0.1" value="-3">
+                        </div>
+                        <div class="param-row">
+                            <label for="trimf-b">b (顶点):</label>
+                            <input type="range" id="trimf-b" min="-10" max="10" step="0.1" value="0">
+                            <input type="number" id="trimf-b-val" min="-10" max="10" step="0.1" value="0">
+                        </div>
+                        <div class="param-row">
+                            <label for="trimf-c">c (右):</label>
+                            <input type="range" id="trimf-c" min="-10" max="10" step="0.1" value="3">
+                            <input type="number" id="trimf-c-val" min="-10" max="10" step="0.1" value="3">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">对称三角形</div>
+                        <div class="preset-btn" data-preset="2">左偏三角形</div>
+                        <div class="preset-btn" data-preset="3">右偏三角形</div>
+                    </div>
+                </div>
+                
+                <!-- 梯形隶属函数 (trapmf) -->
+                <div id="trapmf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-shapes"></i> 梯形隶属函数 (trapmf)</h3>
+                    <p>梯形函数，由四个点a、b、c、d定义，b-c间为平顶。</p>
+                    <div class="function-expression">f(x; a, b, c, d) = max(0, min((x-a)/(b-a), 1, (d-x)/(d-c)))</div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="trapmf-a">a (左):</label>
+                            <input type="range" id="trapmf-a" min="-10" max="10" step="0.1" value="-5">
+                            <input type="number" id="trapmf-a-val" min="-10" max="10" step="0.1" value="-5">
+                        </div>
+                        <div class="param-row">
+                            <label for="trapmf-b">b (左顶):</label>
+                            <input type="range" id="trapmf-b" min="-10" max="10" step="0.1" value="-3">
+                            <input type="number" id="trapmf-b-val" min="-10" max="10" step="0.1" value="-3">
+                        </div>
+                        <div class="param-row">
+                            <label for="trapmf-c">c (右顶):</label>
+                            <input type="range" id="trapmf-c" min="-10" max="10" step="0.1" value="3">
+                            <input type="number" id="trapmf-c-val" min="-10" max="10" step="0.1" value="3">
+                        </div>
+                        <div class="param-row">
+                            <label for="trapmf-d">d (右):</label>
+                            <input type="range" id="trapmf-d" min="-10" max="10" step="0.1" value="5">
+                            <input type="number" id="trapmf-d-val" min="-10" max="10" step="0.1" value="5">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">宽平顶</div>
+                        <div class="preset-btn" data-preset="2">窄平顶</div>
+                        <div class="preset-btn" data-preset="3">右偏梯形</div>
+                    </div>
+                </div>
+                
+                <!-- S形隶属函数 (sigmf) -->
+                <div id="sigmf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-s"></i> S形隶属函数 (sigmf)</h3>
+                    <p>S形函数，由斜率a和中心c控制，用于表示"大"或"多"。</p>
+                    <div class="function-expression">f(x; a, c) = 1 / (1 + exp(-a(x - c)))</div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="sigmf-a">a (斜率):</label>
+                            <input type="range" id="sigmf-a" min="-2" max="2" step="0.1" value="0.5">
+                            <input type="number" id="sigmf-a-val" min="-2" max="2" step="0.1" value="0.5">
+                        </div>
+                        <div class="param-row">
+                            <label for="sigmf-c">c (中心):</label>
+                            <input type="range" id="sigmf-c" min="-10" max="10" step="0.1" value="0">
+                            <input type="number" id="sigmf-c-val" min="-10" max="10" step="0.1" value="0">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">陡峭S形</div>
+                        <div class="preset-btn" data-preset="2">平缓S形</div>
+                        <div class="preset-btn" data-preset="3">反向S形</div>
+                    </div>
+                </div>
+                
+                <!-- 双S形隶属函数 (dsigmf) -->
+                <div id="dsigmf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-wave-square"></i> 双S形隶属函数 (dsigmf)</h3>
+                    <p>两个S形函数的差，由四个参数a1,c1,a2,c2控制。</p>
+                    <div class="function-expression">f(x; a₁, c₁, a₂, c₂) = 1/(1+exp(-a₁(x-c₁))) - 1/(1+exp(-a₂(x-c₂)))</div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="dsigmf-a1">a₁:</label>
+                            <input type="range" id="dsigmf-a1" min="0.2" max="3" step="0.1" value="1">
+                            <input type="number" id="dsigmf-a1-val" min="0.2" max="3" step="0.1" value="1">
+                        </div>
+                        <div class="param-row">
+                            <label for="dsigmf-c1">c₁:</label>
+                            <input type="range" id="dsigmf-c1" min="-10" max="10" step="0.1" value="-3">
+                            <input type="number" id="dsigmf-c1-val" min="-10" max="10" step="0.1" value="-3">
+                        </div>
+                        <div class="param-row">
+                            <label for="dsigmf-a2">a₂:</label>
+                            <input type="range" id="dsigmf-a2" min="0.2" max="3" step="0.1" value="1">
+                            <input type="number" id="dsigmf-a2-val" min="0.2" max="3" step="0.1" value="1">
+                        </div>
+                        <div class="param-row">
+                            <label for="dsigmf-c2">c₂:</label>
+                            <input type="range" id="dsigmf-c2" min="-10" max="10" step="0.1" value="3">
+                            <input type="number" id="dsigmf-c2-val" min="-10" max="10" step="0.1" value="3">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">对称峰</div>
+                        <div class="preset-btn" data-preset="2">宽峰</div>
+                        <div class="preset-btn" data-preset="3">不对称峰</div>
+                    </div>
+                </div>
+                
+                <!-- 双S形乘积隶属函数 (psigmf) -->
+                <div id="psigmf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-times-circle"></i> 双S形乘积隶属函数 (psigmf)</h3>
+                    <p>两个S形函数的乘积，由四个参数a1,c1,a2,c2控制。</p>
+                    <div class="function-expression">f(x; a₁, c₁, a₂, c₂) = (1/(1+exp(-a₁(x-c₁)))) × (1/(1+exp(-a₂(x-c₂))))</div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="psigmf-a1">a₁:</label>
+                            <input type="range" id="psigmf-a1" min="0.2" max="3" step="0.1" value="1">
+                            <input type="number" id="psigmf-a1-val" min="0.2" max="3" step="0.1" value="1">
+                        </div>
+                        <div class="param-row">
+                            <label for="psigmf-c1">c₁:</label>
+                            <input type="range" id="psigmf-c1" min="-10" max="10" step="0.1" value="-3">
+                            <input type="number" id="psigmf-c1-val" min="-10" max="10" step="0.1" value="-3">
+                        </div>
+                        <div class="param-row">
+                            <label for="psigmf-a2">a₂:</label>
+                            <input type="range" id="psigmf-a2" min="0.2" max="3" step="0.1" value="1">
+                            <input type="number" id="psigmf-a2-val" min="0.2" max="3" step="0.1" value="1">
+                        </div>
+                        <div class="param-row">
+                            <label for="psigmf-c2">c₂:</label>
+                            <input type="range" id="psigmf-c2" min="-10" max="10" step="0.1" value="3">
+                            <input type="number" id="psigmf-c2-val" min="-10" max="10" step="0.1" value="3">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">对称峰</div>
+                        <div class="preset-btn" data-preset="2">宽峰</div>
+                        <div class="preset-btn" data-preset="3">不对称峰</div>
+                    </div>
+                </div>
+                
+                <!-- 联合高斯型隶属函数 (gauss2mf) -->
+                <div id="gauss2mf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-mountain"></i> 联合高斯型隶属函数 (gauss2mf)</h3>
+                    <p>由两个高斯函数曲线拼接而成。当c₁ < c₂时，gauss2mf曲线（c₁至c₂中间部分）恒等于1。否则，由两个高斯函数交点两侧曲线拼接而成：交点左侧曲线是高斯函数（参数σ₁和c₁）部分，交点右侧曲线是高斯函数（参数σ₂和c₂）部分。</p>
+                    <div class="function-expression">
+                        当 c₁ < c₂ 时：<br>
+                        f(x) = exp(-(x-c₁)²/(2σ₁²)), x ≤ c₁<br>
+                        f(x) = 1, c₁ < x < c₂<br>
+                        f(x) = exp(-(x-c₂)²/(2σ₂²)), x ≥ c₂<br><br>
+                        当 c₁ ≥ c₂ 时：<br>
+                        f(x) = exp(-(x-c₁)²/(2σ₁²)), x ≤ x₀<br>
+                        f(x) = exp(-(x-c₂)²/(2σ₂²)), x > x₀<br>
+                        (x₀ = (c₁·σ₂² + c₂·σ₁²)/(σ₁² + σ₂²) 为交点)
+                    </div>
+                    
+                    <div class="important-note">
+                        <strong>重要特性：</strong>当 c₁ < c₂ 时，gauss2mf函数在c₁和c₂之间达到最大值1；当 c₁ ≥ c₂ 时，函数在交点处拼接。
+                    </div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="gauss2mf-sigma1">σ₁ (左宽度):</label>
+                            <input type="range" id="gauss2mf-sigma1" min="0.5" max="5" step="0.1" value="2">
+                            <input type="number" id="gauss2mf-sigma1-val" min="0.5" max="5" step="0.1" value="2">
+                        </div>
+                        <div class="param-row">
+                            <label for="gauss2mf-c1">c₁ (左中心):</label>
+                            <input type="range" id="gauss2mf-c1" min="-10" max="10" step="0.1" value="-3">
+                            <input type="number" id="gauss2mf-c1-val" min="-10" max="10" step="0.1" value="-3">
+                        </div>
+                        <div class="param-row">
+                            <label for="gauss2mf-sigma2">σ₂ (右宽度):</label>
+                            <input type="range" id="gauss2mf-sigma2" min="0.5" max="5" step="0.1" value="2">
+                            <input type="number" id="gauss2mf-sigma2-val" min="0.5" max="5" step="0.1" value="2">
+                        </div>
+                        <div class="param-row">
+                            <label for="gauss2mf-c2">c₂ (右中心):</label>
+                            <input type="range" id="gauss2mf-c2" min="-10" max="10" step="0.1" value="3">
+                            <input type="number" id="gauss2mf-c2-val" min="-10" max="10" step="0.1" value="3">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">对称峰(c₁&lt;c₂)</div>
+                        <div class="preset-btn" data-preset="2">不对称峰</div>
+                        <div class="preset-btn" data-preset="3">重叠峰(c₁&gt;c₂)</div>
+                    </div>
+                </div>
+                
+                <!-- II型隶属函数 (pimf) -->
+                <div id="pimf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-pi"></i> II型隶属函数 (pimf)</h3>
+                    <p>Π形函数，由a,b,c,d四个参数定义，b和c确定"肩部"位置。</p>
+                    <div class="piecewise-function">
+                        f(x; a, b, c, d) = <br>
+                        0, x ≤ a<br>
+                        2((x-a)/(b-a))², a ≤ x ≤ (a+b)/2<br>
+                        1-2((x-b)/(b-a))², (a+b)/2 ≤ x ≤ b<br>
+                        1, b ≤ x ≤ c<br>
+                        1-2((x-c)/(d-c))², c ≤ x ≤ (c+d)/2<br>
+                        2((x-d)/(d-c))², (c+d)/2 ≤ x ≤ d<br>
+                        0, x ≥ d
+                    </div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="pimf-a">a:</label>
+                            <input type="range" id="pimf-a" min="-10" max="10" step="0.1" value="-5">
+                            <input type="number" id="pimf-a-val" min="-10" max="10" step="0.1" value="-5">
+                        </div>
+                        <div class="param-row">
+                            <label for="pimf-b">b:</label>
+                            <input type="range" id="pimf-b" min="-10" max="10" step="0.1" value="-2">
+                            <input type="number" id="pimf-b-val" min="-10" max="10" step="0.1" value="-2">
+                        </div>
+                        <div class="param-row">
+                            <label for="pimf-c">c:</label>
+                            <input type="range" id="pimf-c" min="-10" max="10" step="0.1" value="2">
+                            <input type="number" id="pimf-c-val" min="-10" max="10" step="0.1" value="2">
+                        </div>
+                        <div class="param-row">
+                            <label for="pimf-d">d:</label>
+                            <input type="range" id="pimf-d" min="-10" max="10" step="0.1" value="5">
+                            <input type="number" id="pimf-d-val" min="-10" max="10" step="0.1" value="5">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">宽平顶</div>
+                        <div class="preset-btn" data-preset="2">窄平顶</div>
+                        <div class="preset-btn" data-preset="3">不对称Π</div>
+                    </div>
+                </div>
+                
+                <!-- S状隶属函数 (smf) -->
+                <div id="smf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-chart-line"></i> S状隶属函数 (smf)</h3>
+                    <p>S形样条曲线，由a,b两个参数定义。</p>
+                    <div class="piecewise-function">
+                        f(x; a, b) = <br>
+                        0, x ≤ a<br>
+                        2((x-a)/(b-a))², a ≤ x ≤ (a+b)/2<br>
+                        1-2((x-b)/(b-a))², (a+b)/2 ≤ x ≤ b<br>
+                        1, x ≥ b
+                    </div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="smf-a">a:</label>
+                            <input type="range" id="smf-a" min="-10" max="10" step="0.1" value="-3">
+                            <input type="number" id="smf-a-val" min="-10" max="10" step="0.1" value="-3">
+                        </div>
+                        <div class="param-row">
+                            <label for="smf-b">b:</label>
+                            <input type="range" id="smf-b" min="-10" max="10" step="0.1" value="3">
+                            <input type="number" id="smf-b-val" min="-10" max="10" step="0.1" value="3">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">陡峭S形</div>
+                        <div class="preset-btn" data-preset="2">平缓S形</div>
+                        <div class="preset-btn" data-preset="3">宽S形</div>
+                    </div>
+                </div>
+                
+                <!-- Z形隶属函数 (zmf) -->
+                <div id="zmf-detail" class="function-detail" style="display: none;">
+                    <h3><i class="fas fa-chart-line"></i> Z形隶属函数 (zmf)</h3>
+                    <p>Z形样条曲线，由a,b两个参数定义。</p>
+                    <div class="piecewise-function">
+                        f(x; a, b) = <br>
+                        1, x ≤ a<br>
+                        1-2((x-a)/(b-a))², a ≤ x ≤ (a+b)/2<br>
+                        2((x-b)/(b-a))², (a+b)/2 ≤ x ≤ b<br>
+                        0, x ≥ b
+                    </div>
+                    
+                    <div class="parameter-controls">
+                        <div class="param-row">
+                            <label for="zmf-a">a:</label>
+                            <input type="range" id="zmf-a" min="-10" max="10" step="0.1" value="-3">
+                            <input type="number" id="zmf-a-val" min="-10" max="10" step="0.1" value="-3">
+                        </div>
+                        <div class="param-row">
+                            <label for="zmf-b">b:</label>
+                            <input type="range" id="zmf-b" min="-10" max="10" step="0.1" value="3">
+                            <input type="number" id="zmf-b-val" min="-10" max="10" step="0.1" value="3">
+                        </div>
+                    </div>
+                    
+                    <div class="preset-buttons">
+                        <div class="preset-btn" data-preset="1">陡峭Z形</div>
+                        <div class="preset-btn" data-preset="2">平缓Z形</div>
+                        <div class="preset-btn" data-preset="3">宽Z形</div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 20px;">
+                    <button class="btn" id="animate-btn"><i class="fas fa-play-circle"></i> 动画演示参数影响</button>
+                    <button class="btn" id="reset-btn"><i class="fas fa-redo"></i> 重置参数</button>
+                </div>
+            </div>
+            
+            <div class="visualization-panel">
+                <h2><i class="fas fa-chart-bar"></i> 函数可视化</h2>
+                <div class="chart-container">
+                    <canvas id="mfChart"></canvas>
+                </div>
+                
+                <div class="chart-info">
+                    <div class="info-row">
+                        <span class="info-label">当前函数：</span>
+                        <span class="info-value" id="current-function">高斯型 (gaussmf)</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">参数：</span>
+                        <span class="info-value" id="current-params">σ=2.0, c=0.0</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">支撑集：</span>
+                        <span class="info-value" id="support-set">[-6.0, 6.0]</span>
+                    </div>
+                    <div class="info-row">
+                        <span class="info-label">核集：</span>
+                        <span class="info-value" id="kernel-set">[0.0]</span>
+                    </div>
+                    <div class="info-row" id="gauss2mf-note" style="display: none;">
+                        <span class="info-label">特性：</span>
+                        <span class="info-value" style="color: #e74c3c;" id="gauss2mf-max-value">c₁ < c₂，最大值为1</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="comparison-panel">
+            <h2><i class="fas fa-balance-scale"></i> 函数特性对比</h2>
+            <div class="comparison-container">
+                <div class="comparison-box">
+                    <h3>高斯型 (gaussmf)</h3>
+                    <p><strong>参数：</strong>σ, c</p>
+                    <p><strong>特点：</strong>对称钟形，平滑连续</p>
+                    <p><strong>应用：</strong>测量误差，正态分布现象</p>
+                    <p><strong>表达式：</strong>exp(-(x-c)²/(2σ²))</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>广义钟形 (gbellmf)</h3>
+                    <p><strong>参数：</strong>a, b, c</p>
+                    <p><strong>特点：</strong>可调节宽度和形状</p>
+                    <p><strong>应用：</strong>灵活建模，多峰分布</p>
+                    <p><strong>表达式：</strong>1/(1+|(x-c)/a|^(2b))</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>三角形 (trimf)</h3>
+                    <p><strong>参数：</strong>a, b, c</p>
+                    <p><strong>特点：</strong>简单线性，计算高效</p>
+                    <p><strong>应用：</strong>简单分类，线性过渡</p>
+                    <p><strong>表达式：</strong>max(0, min((x-a)/(b-a), (c-x)/(c-b)))</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>梯形 (trapmf)</h3>
+                    <p><strong>参数：</strong>a, b, c, d</p>
+                    <p><strong>特点：</strong>有平顶区域，容错性强</p>
+                    <p><strong>应用：</strong>区间描述，容错控制</p>
+                    <p><strong>表达式：</strong>max(0, min((x-a)/(b-a), 1, (d-x)/(d-c)))</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>S形 (sigmf)</h3>
+                    <p><strong>参数：</strong>a, c</p>
+                    <p><strong>特点：</strong>单调递增，平滑过渡</p>
+                    <p><strong>应用：</strong>"大/多"概念，分类边界</p>
+                    <p><strong>表达式：</strong>1/(1+exp(-a(x-c)))</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>双S形 (dsigmf)</h3>
+                    <p><strong>参数：</strong>a₁,c₁,a₂,c₂</p>
+                    <p><strong>特点：</strong>两个S形函数差</p>
+                    <p><strong>应用：</strong>形成局部峰值</p>
+                    <p><strong>表达式：</strong>sigmf(x,a₁,c₁)-sigmf(x,a₂,c₂)</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>双S形乘积 (psigmf)</h3>
+                    <p><strong>参数：</strong>a₁,c₁,a₂,c₂</p>
+                    <p><strong>特点：</strong>两个S形函数积</p>
+                    <p><strong>应用：</strong>形成局部峰值</p>
+                    <p><strong>表达式：</strong>sigmf(x,a₁,c₁)×sigmf(x,a₂,c₂)</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>联合高斯型 (gauss2mf)</h3>
+                    <p><strong>参数：</strong>σ₁,c₁,σ₂,c₂</p>
+                    <p><strong>特点：</strong>两个高斯函数拼接</p>
+                    <p><strong>应用：</strong>非对称分布建模</p>
+                    <p><strong>表达式：</strong>分段函数</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>II型 (pimf)</h3>
+                    <p><strong>参数：</strong>a, b, c, d</p>
+                    <p><strong>特点：</strong>Π形，平顶加平滑肩部</p>
+                    <p><strong>应用：</strong>区间表示，容错范围</p>
+                    <p><strong>表达式：</strong>分段二次函数</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>S状 (smf)</h3>
+                    <p><strong>参数：</strong>a, b</p>
+                    <p><strong>特点：</strong>单调递增，平滑S形</p>
+                    <p><strong>应用：</strong>"大"概念，上升趋势</p>
+                    <p><strong>表达式：</strong>分段二次函数</p>
+                </div>
+                
+                <div class="comparison-box">
+                    <h3>Z形 (zmf)</h3>
+                    <p><strong>参数：</strong>a, b</p>
+                    <p><strong>特点：</strong>单调递减，平滑Z形</p>
+                    <p><strong>应用：</strong>"小"概念，下降趋势</p>
+                    <p><strong>表达式：</strong>分段二次函数</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="footer-note">
+            <p>© 自动化专业智能控制技术课程 - 模糊隶属度函数交互式仿真实验</p>
+            <p style="margin-top: 5px;">提示：选择不同函数，调整参数观察函数形状的变化。点击"动画演示"查看参数影响。</p>
+        </div>
+    </div>
+
+    <script>
+        // 初始化变量
+        let mfChart = null;
+        let currentFunc = 'gaussmf';
+        let animationInProgress = false;
+        
+        // 各函数的默认参数（适应-10到10的论域）
+        const defaultParams = {
+            gaussmf: { sigma: 2, c: 0 },
+            gbellmf: { a: 3, b: 3, c: 0 },
+            trimf: { a: -3, b: 0, c: 3 },
+            trapmf: { a: -5, b: -3, c: 3, d: 5 },
+            sigmf: { a: 0.5, c: 0 },
+            dsigmf: { a1: 1, c1: -3, a2: 1, c2: 3 },
+            gauss2mf: { sigma1: 2, c1: -3, sigma2: 2, c2: 3 },
+            pimf: { a: -5, b: -2, c: 2, d: 5 },
+            psigmf: { a1: 1, c1: -3, a2: 1, c2: 3 },
+            smf: { a: -3, b: 3 },
+            zmf: { a: -3, b: 3 }
+        };
+        
+        // 各函数的参数范围（适应-10到10的论域）
+        const paramRanges = {
+            gaussmf: { sigma: [0.5, 5], c: [-10, 10] },
+            gbellmf: { a: [1, 8], b: [1, 8], c: [-10, 10] },
+            trimf: { a: [-10, 10], b: [-10, 10], c: [-10, 10] },
+            trapmf: { a: [-10, 10], b: [-10, 10], c: [-10, 10], d: [-10, 10] },
+            sigmf: { a: [-2, 2], c: [-10, 10] },
+            dsigmf: { a1: [0.2, 3], c1: [-10, 10], a2: [0.2, 3], c2: [-10, 10] },
+            gauss2mf: { sigma1: [0.5, 5], c1: [-10, 10], sigma2: [0.5, 5], c2: [-10, 10] },
+            pimf: { a: [-10, 10], b: [-10, 10], c: [-10, 10], d: [-10, 10] },
+            psigmf: { a1: [0.2, 3], c1: [-10, 10], a2: [0.2, 3], c2: [-10, 10] },
+            smf: { a: [-10, 10], b: [-10, 10] },
+            zmf: { a: [-10, 10], b: [-10, 10] }
+        };
+
+        // 初始化页面
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeChart();
+            setupEventListeners();
+            updateChart();
+            updateFunctionInfo();
+        });
+
+        // 初始化图表
+        function initializeChart() {
+            const ctx = document.getElementById('mfChart').getContext('2d');
+            
+            // 创建新图表，论域范围-10到10
+            mfChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 201}, (_, i) => -10 + i * 0.1), // -10到10，步长0.1
+                    datasets: [{
+                        label: '隶属度 μ(x)',
+                        data: [],
+                        borderColor: '#4a6fa5',
+                        backgroundColor: 'rgba(74, 111, 165, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0,
+                        pointRadius: 0,
+                        pointHoverRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            labels: {
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `x=${context.label}, μ(x)=${context.parsed.y.toFixed(3)}`;
+                                }
+                            },
+                            titleFont: {
+                                size: 11
+                            },
+                            bodyFont: {
+                                size: 11
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: '论域 x',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            min: -10,
+                            max: 10,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 10
+                                },
+                                stepSize: 2
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: '隶属度 μ(x)',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            min: 0,
+                            max: 1.05,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)'
+                            },
+                            ticks: {
+                                font: {
+                                    size: 10
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 300,
+                        easing: 'linear'
+                    }
+                }
+            });
+        }
+
+        // 设置事件监听器
+        function setupEventListeners() {
+            // 函数选择按钮
+            document.querySelectorAll('.func-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    // 更新活动按钮
+                    document.querySelectorAll('.func-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // 切换函数
+                    const func = this.getAttribute('data-func');
+                    switchFunction(func);
+                });
+            });
+
+            // 预设按钮
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const preset = this.getAttribute('data-preset');
+                    applyPreset(preset);
+                });
+            });
+
+            // 滑动条和数字输入框的联动
+            setupParamInputs();
+            
+            // 动画按钮
+            document.getElementById('animate-btn').addEventListener('click', animateParams);
+            
+            // 重置按钮
+            document.getElementById('reset-btn').addEventListener('click', resetParams);
+        }
+
+        // 设置参数输入控件
+        function setupParamInputs() {
+            // 为每个函数设置参数输入监听
+            setupFuncParamInputs('gaussmf', ['sigma', 'c']);
+            setupFuncParamInputs('gbellmf', ['a', 'b', 'c']);
+            setupFuncParamInputs('trimf', ['a', 'b', 'c']);
+            setupFuncParamInputs('trapmf', ['a', 'b', 'c', 'd']);
+            setupFuncParamInputs('sigmf', ['a', 'c']);
+            setupFuncParamInputs('dsigmf', ['a1', 'c1', 'a2', 'c2']);
+            setupFuncParamInputs('gauss2mf', ['sigma1', 'c1', 'sigma2', 'c2']);
+            setupFuncParamInputs('pimf', ['a', 'b', 'c', 'd']);
+            setupFuncParamInputs('psigmf', ['a1', 'c1', 'a2', 'c2']);
+            setupFuncParamInputs('smf', ['a', 'b']);
+            setupFuncParamInputs('zmf', ['a', 'b']);
+        }
+
+        // 为特定函数设置参数输入监听
+        function setupFuncParamInputs(funcName, params) {
+            params.forEach(param => {
+                const rangeInput = document.getElementById(`${funcName}-${param}`);
+                const numInput = document.getElementById(`${funcName}-${param}-val`);
+                
+                if (rangeInput && numInput) {
+                    rangeInput.addEventListener('input', function() {
+                        numInput.value = this.value;
+                        updateChart();
+                        updateFunctionInfo();
+                    });
+                    
+                    numInput.addEventListener('change', function() {
+                        let val = parseFloat(this.value);
+                        const range = paramRanges[funcName][param];
+                        if (val < range[0]) val = range[0];
+                        if (val > range[1]) val = range[1];
+                        this.value = val;
+                        rangeInput.value = val;
+                        updateChart();
+                        updateFunctionInfo();
+                    });
+                }
+            });
+        }
+
+        // 切换函数
+        function switchFunction(func) {
+            // 隐藏所有函数详情
+            document.querySelectorAll('.function-detail').forEach(el => {
+                el.style.display = 'none';
+            });
+            
+            // 显示当前函数详情
+            document.getElementById(`${func}-detail`).style.display = 'block';
+            
+            // 更新当前函数
+            currentFunc = func;
+            
+            // 更新图表
+            updateChart();
+            
+            // 更新函数信息
+            updateFunctionInfo();
+            
+            // 更新当前函数显示
+            const funcNames = {
+                gaussmf: '高斯型',
+                gbellmf: '广义钟形',
+                trimf: '三角形',
+                trapmf: '梯形',
+                sigmf: 'S形',
+                dsigmf: '双S形',
+                gauss2mf: '联合高斯型',
+                pimf: 'II型',
+                psigmf: '双S形乘积',
+                smf: 'S状',
+                zmf: 'Z形'
+            };
+            document.getElementById('current-function').textContent = `${funcNames[func]} (${func})`;
+            
+            // 显示/隐藏gauss2mf特性说明
+            if (func === 'gauss2mf') {
+                document.getElementById('gauss2mf-note').style.display = 'flex';
+            } else {
+                document.getElementById('gauss2mf-note').style.display = 'none';
+            }
+        }
+
+        // 应用预设参数
+        function applyPreset(presetNum) {
+            const preset = parseInt(presetNum);
+            let params = {};
+            
+            switch(currentFunc) {
+                case 'gaussmf':
+                    if (preset === 1) params = { sigma: 1, c: 0 };
+                    else if (preset === 2) params = { sigma: 4, c: 0 };
+                    else if (preset === 3) params = { sigma: 2, c: -5 };
+                    break;
+                    
+                case 'gbellmf':
+                    if (preset === 1) params = { a: 1.5, b: 5, c: 0 };
+                    else if (preset === 2) params = { a: 5, b: 1.5, c: 0 };
+                    else if (preset === 3) params = { a: 3, b: 2, c: 0 };
+                    break;
+                    
+                case 'trimf':
+                    if (preset === 1) params = { a: -3, b: 0, c: 3 };
+                    else if (preset === 2) params = { a: -5, b: -1, c: 2 };
+                    else if (preset === 3) params = { a: -2, b: 1, c: 5 };
+                    break;
+                    
+                case 'trapmf':
+                    if (preset === 1) params = { a: -5, b: -3, c: 3, d: 5 };
+                    else if (preset === 2) params = { a: -4, b: -2, c: 2, d: 4 };
+                    else if (preset === 3) params = { a: -6, b: -4, c: 2, d: 4 };
+                    break;
+                    
+                case 'sigmf':
+                    if (preset === 1) params = { a: 1.5, c: 0 };
+                    else if (preset === 2) params = { a: 0.3, c: 0 };
+                    else if (preset === 3) params = { a: -1, c: 0 };
+                    break;
+                    
+                case 'dsigmf':
+                    if (preset === 1) params = { a1: 1.5, c1: -3, a2: 1.5, c2: 3 };
+                    else if (preset === 2) params = { a1: 0.5, c1: -4, a2: 0.5, c2: 4 };
+                    else if (preset === 3) params = { a1: 2, c1: -2, a2: 1, c2: 5 };
+                    break;
+                    
+                case 'gauss2mf':
+                    if (preset === 1) params = { sigma1: 1.5, c1: -4, sigma2: 1.5, c2: 4 };
+                    else if (preset === 2) params = { sigma1: 2.5, c1: -2, sigma2: 1.5, c2: 3 };
+                    else if (preset === 3) params = { sigma1: 2, c1: 2, sigma2: 1.5, c2: -1 };
+                    break;
+                    
+                case 'pimf':
+                    if (preset === 1) params = { a: -5, b: -2, c: 2, d: 5 };
+                    else if (preset === 2) params = { a: -4, b: -1, c: 1, d: 4 };
+                    else if (preset === 3) params = { a: -6, b: -3, c: 3, d: 7 };
+                    break;
+                    
+                case 'psigmf':
+                    if (preset === 1) params = { a1: 1.5, c1: -3, a2: 1.5, c2: 3 };
+                    else if (preset === 2) params = { a1: 0.5, c1: -4, a2: 0.5, c2: 4 };
+                    else if (preset === 3) params = { a1: 2, c1: -2, a2: 1, c2: 5 };
+                    break;
+                    
+                case 'smf':
+                    if (preset === 1) params = { a: -5, b: 5 };
+                    else if (preset === 2) params = { a: -3, b: 8 };
+                    else if (preset === 3) params = { a: -8, b: 2 };
+                    break;
+                    
+                case 'zmf':
+                    if (preset === 1) params = { a: -5, b: 5 };
+                    else if (preset === 2) params = { a: -3, b: 8 };
+                    else if (preset === 3) params = { a: -8, b: 2 };
+                    break;
+            }
+            
+            // 应用参数
+            applyParams(params);
+        }
+
+        // 应用参数到控件
+        function applyParams(params) {
+            for (const [param, value] of Object.entries(params)) {
+                const rangeInput = document.getElementById(`${currentFunc}-${param}`);
+                const numInput = document.getElementById(`${currentFunc}-${param}-val`);
+                
+                if (rangeInput && numInput) {
+                    rangeInput.value = value;
+                    numInput.value = value;
+                }
+            }
+            
+            updateChart();
+            updateFunctionInfo();
+        }
+
+        // 更新图表
+        function updateChart() {
+            // 获取当前参数
+            const params = getCurrentParams();
+            
+            // 计算函数值
+            const data = calculateFunctionValues(params);
+            
+            // 更新图表数据
+            mfChart.data.datasets[0].data = data;
+            mfChart.update();
+        }
+
+        // 获取当前参数
+        function getCurrentParams() {
+            const params = {};
+            
+            switch(currentFunc) {
+                case 'gaussmf':
+                    params.sigma = parseFloat(document.getElementById('gaussmf-sigma').value);
+                    params.c = parseFloat(document.getElementById('gaussmf-c').value);
+                    break;
+                    
+                case 'gbellmf':
+                    params.a = parseFloat(document.getElementById('gbellmf-a').value);
+                    params.b = parseFloat(document.getElementById('gbellmf-b').value);
+                    params.c = parseFloat(document.getElementById('gbellmf-c').value);
+                    break;
+                    
+                case 'trimf':
+                    params.a = parseFloat(document.getElementById('trimf-a').value);
+                    params.b = parseFloat(document.getElementById('trimf-b').value);
+                    params.c = parseFloat(document.getElementById('trimf-c').value);
+                    break;
+                    
+                case 'trapmf':
+                    params.a = parseFloat(document.getElementById('trapmf-a').value);
+                    params.b = parseFloat(document.getElementById('trapmf-b').value);
+                    params.c = parseFloat(document.getElementById('trapmf-c').value);
+                    params.d = parseFloat(document.getElementById('trapmf-d').value);
+                    break;
+                    
+                case 'sigmf':
+                    params.a = parseFloat(document.getElementById('sigmf-a').value);
+                    params.c = parseFloat(document.getElementById('sigmf-c').value);
+                    break;
+                    
+                case 'dsigmf':
+                    params.a1 = parseFloat(document.getElementById('dsigmf-a1').value);
+                    params.c1 = parseFloat(document.getElementById('dsigmf-c1').value);
+                    params.a2 = parseFloat(document.getElementById('dsigmf-a2').value);
+                    params.c2 = parseFloat(document.getElementById('dsigmf-c2').value);
+                    break;
+                    
+                case 'gauss2mf':
+                    params.sigma1 = parseFloat(document.getElementById('gauss2mf-sigma1').value);
+                    params.c1 = parseFloat(document.getElementById('gauss2mf-c1').value);
+                    params.sigma2 = parseFloat(document.getElementById('gauss2mf-sigma2').value);
+                    params.c2 = parseFloat(document.getElementById('gauss2mf-c2').value);
+                    break;
+                    
+                case 'pimf':
+                    params.a = parseFloat(document.getElementById('pimf-a').value);
+                    params.b = parseFloat(document.getElementById('pimf-b').value);
+                    params.c = parseFloat(document.getElementById('pimf-c').value);
+                    params.d = parseFloat(document.getElementById('pimf-d').value);
+                    break;
+                    
+                case 'psigmf':
+                    params.a1 = parseFloat(document.getElementById('psigmf-a1').value);
+                    params.c1 = parseFloat(document.getElementById('psigmf-c1').value);
+                    params.a2 = parseFloat(document.getElementById('psigmf-a2').value);
+                    params.c2 = parseFloat(document.getElementById('psigmf-c2').value);
+                    break;
+                    
+                case 'smf':
+                    params.a = parseFloat(document.getElementById('smf-a').value);
+                    params.b = parseFloat(document.getElementById('smf-b').value);
+                    break;
+                    
+                case 'zmf':
+                    params.a = parseFloat(document.getElementById('zmf-a').value);
+                    params.b = parseFloat(document.getElementById('zmf-b').value);
+                    break;
+            }
+            
+            return params;
+        }
+
+        // 计算函数值
+        function calculateFunctionValues(params) {
+            const xValues = Array.from({length: 201}, (_, i) => -10 + i * 0.1); // -10到10，步长0.1
+            const yValues = [];
+            
+            switch(currentFunc) {
+                case 'gaussmf':
+                    // 高斯函数: f(x) = exp(-(x-c)²/(2σ²))
+                    for (let x of xValues) {
+                        const exponent = -Math.pow(x - params.c, 2) / (2 * Math.pow(params.sigma, 2));
+                        yValues.push(Math.exp(exponent));
+                    }
+                    break;
+                    
+                case 'gbellmf':
+                    // 广义钟形函数: f(x) = 1 / (1 + |(x-c)/a|^(2b))
+                    for (let x of xValues) {
+                        const term = Math.pow(Math.abs((x - params.c) / params.a), 2 * params.b);
+                        yValues.push(1 / (1 + term));
+                    }
+                    break;
+                    
+                case 'trimf':
+                    // 三角形函数
+                    for (let x of xValues) {
+                        let y = 0;
+                        if (x >= params.a && x <= params.b) {
+                            y = (x - params.a) / (params.b - params.a);
+                        } else if (x >= params.b && x <= params.c) {
+                            y = (params.c - x) / (params.c - params.b);
+                        }
+                        yValues.push(y);
+                    }
+                    break;
+                    
+                case 'trapmf':
+                    // 梯形函数
+                    for (let x of xValues) {
+                        let y = 0;
+                        if (x >= params.a && x <= params.b) {
+                            y = (x - params.a) / (params.b - params.a);
+                        } else if (x >= params.b && x <= params.c) {
+                            y = 1;
+                        } else if (x >= params.c && x <= params.d) {
+                            y = (params.d - x) / (params.d - params.c);
+                        }
+                        yValues.push(y);
+                    }
+                    break;
+                    
+                case 'sigmf':
+                    // S形函数: f(x) = 1 / (1 + exp(-a(x-c)))
+                    for (let x of xValues) {
+                        yValues.push(1 / (1 + Math.exp(-params.a * (x - params.c))));
+                    }
+                    break;
+                    
+                case 'dsigmf':
+                    // 双S形函数: f(x) = sigmf(x, a1, c1) - sigmf(x, a2, c2)
+                    for (let x of xValues) {
+                        const sigmf1 = 1 / (1 + Math.exp(-params.a1 * (x - params.c1)));
+                        const sigmf2 = 1 / (1 + Math.exp(-params.a2 * (x - params.c2)));
+                        yValues.push(Math.max(0, sigmf1 - sigmf2));
+                    }
+                    break;
+                    
+                case 'gauss2mf':
+                    // 联合高斯函数（拼接版本）
+                    for (let x of xValues) {
+                        if (params.c1 < params.c2) {
+                            // 当c1 < c2时：中间部分为1，两侧为高斯函数
+                            if (x <= params.c1) {
+                                // 左侧高斯函数
+                                yValues.push(Math.exp(-Math.pow(x - params.c1, 2) / (2 * Math.pow(params.sigma1, 2))));
+                            } else if (x >= params.c2) {
+                                // 右侧高斯函数
+                                yValues.push(Math.exp(-Math.pow(x - params.c2, 2) / (2 * Math.pow(params.sigma2, 2))));
+                            } else {
+                                // 中间部分恒等于1
+                                yValues.push(1);
+                            }
+                        } else {
+                            // 当c1 >= c2时：找到两个高斯函数的交点，在交点左侧使用第一个高斯函数，右侧使用第二个高斯函数
+                            // 计算两个高斯函数的值
+                            const gauss1 = Math.exp(-Math.pow(x - params.c1, 2) / (2 * Math.pow(params.sigma1, 2)));
+                            const gauss2 = Math.exp(-Math.pow(x - params.c2, 2) / (2 * Math.pow(params.sigma2, 2)));
+                            
+                            // 如果c1 == c2，两个函数中心重合，取最大值
+                            if (params.c1 === params.c2) {
+                                yValues.push(Math.max(gauss1, gauss2));
+                            } else {
+                                // 计算交点位置x₀（两个高斯函数值相等的位置）
+                                // 解方程：exp(-(x-c1)²/(2σ1²)) = exp(-(x-c2)²/(2σ2²))
+                                // 即：(x-c1)²/σ1² = (x-c2)²/σ2²
+                                // 解为：x₀ = (c1*σ2² + c2*σ1²) / (σ1² + σ2²)
+                                const sigma1Sq = Math.pow(params.sigma1, 2);
+                                const sigma2Sq = Math.pow(params.sigma2, 2);
+                                const intersectionX = (params.c1 * sigma2Sq + params.c2 * sigma1Sq) / (sigma1Sq + sigma2Sq);
+                                
+                                // 在交点左侧使用第一个高斯函数，右侧使用第二个高斯函数
+                                if (x <= intersectionX) {
+                                    yValues.push(gauss1);
+                                } else {
+                                    yValues.push(gauss2);
+                                }
+                            }
+                        }
+                    }
+                    break;
+                    
+                case 'pimf':
+                    // II型隶属函数 (Π形函数)
+                    for (let x of xValues) {
+                        let y = 0;
+                        if (x <= params.a) {
+                            y = 0;
+                        } else if (x >= params.a && x <= (params.a + params.b) / 2) {
+                            y = 2 * Math.pow((x - params.a) / (params.b - params.a), 2);
+                        } else if (x >= (params.a + params.b) / 2 && x <= params.b) {
+                            y = 1 - 2 * Math.pow((x - params.b) / (params.b - params.a), 2);
+                        } else if (x >= params.b && x <= params.c) {
+                            y = 1;
+                        } else if (x >= params.c && x <= (params.c + params.d) / 2) {
+                            y = 1 - 2 * Math.pow((x - params.c) / (params.d - params.c), 2);
+                        } else if (x >= (params.c + params.d) / 2 && x <= params.d) {
+                            y = 2 * Math.pow((x - params.d) / (params.d - params.c), 2);
+                        } else if (x >= params.d) {
+                            y = 0;
+                        }
+                        yValues.push(y);
+                    }
+                    break;
+                    
+                case 'psigmf':
+                    // 双S形乘积函数: f(x) = sigmf(x, a1, c1) * sigmf(x, a2, c2)
+                    for (let x of xValues) {
+                        const sigmf1 = 1 / (1 + Math.exp(-params.a1 * (x - params.c1)));
+                        const sigmf2 = 1 / (1 + Math.exp(-params.a2 * (x - params.c2)));
+                        yValues.push(sigmf1 * sigmf2);
+                    }
+                    break;
+                    
+                case 'smf':
+                    // S状隶属函数
+                    for (let x of xValues) {
+                        let y = 0;
+                        if (x <= params.a) {
+                            y = 0;
+                        } else if (x >= params.a && x <= (params.a + params.b) / 2) {
+                            y = 2 * Math.pow((x - params.a) / (params.b - params.a), 2);
+                        } else if (x >= (params.a + params.b) / 2 && x <= params.b) {
+                            y = 1 - 2 * Math.pow((x - params.b) / (params.b - params.a), 2);
+                        } else if (x >= params.b) {
+                            y = 1;
+                        }
+                        yValues.push(y);
+                    }
+                    break;
+                    
+                case 'zmf':
+                    // Z形隶属函数
+                    for (let x of xValues) {
+                        let y = 1;
+                        if (x <= params.a) {
+                            y = 1;
+                        } else if (x >= params.a && x <= (params.a + params.b) / 2) {
+                            y = 1 - 2 * Math.pow((x - params.a) / (params.b - params.a), 2);
+                        } else if (x >= (params.a + params.b) / 2 && x <= params.b) {
+                            y = 2 * Math.pow((x - params.b) / (params.b - params.a), 2);
+                        } else if (x >= params.b) {
+                            y = 0;
+                        }
+                        yValues.push(y);
+                    }
+                    break;
+                    
+                default:
+                    // 对于其他函数，暂时使用高斯函数替代
+                    for (let x of xValues) {
+                        const exponent = -Math.pow(x - 0, 2) / (2 * Math.pow(2, 2));
+                        yValues.push(Math.exp(exponent));
+                    }
+            }
+            
+            return yValues;
+        }
+
+        // 更新函数信息
+        function updateFunctionInfo() {
+            const params = getCurrentParams();
+            
+            // 更新参数显示
+            let paramsStr = '';
+            for (const [key, value] of Object.entries(params)) {
+                paramsStr += `${key}=${value.toFixed(1)}`;
+                if (key !== Object.keys(params)[Object.keys(params).length - 1]) {
+                    paramsStr += ', ';
+                }
+            }
+            document.getElementById('current-params').textContent = paramsStr;
+            
+            // 计算支撑集和核集（简化版本）
+            const data = calculateFunctionValues(params);
+            const xValues = Array.from({length: 201}, (_, i) => -10 + i * 0.1);
+            
+            // 支撑集：隶属度大于0.001的区间
+            let supportStart = -1;
+            let supportEnd = -1;
+            for (let i = 0; i < data.length; i++) {
+                if (data[i] > 0.001) {
+                    if (supportStart === -1) supportStart = xValues[i];
+                    supportEnd = xValues[i];
+                }
+            }
+            
+            // 核集：隶属度等于1的点（或接近1的点）
+            let kernelPoints = [];
+            let maxValue = 0;
+            for (let i = 0; i < data.length; i++) {
+                if (data[i] >= 0.999) {
+                    kernelPoints.push(xValues[i].toFixed(1));
+                }
+                if (data[i] > maxValue) {
+                    maxValue = data[i];
+                }
+            }
+            
+            // 更新显示
+            document.getElementById('support-set').textContent = 
+                supportStart !== -1 ? `[${supportStart.toFixed(1)}, ${supportEnd.toFixed(1)}]` : '空集';
+            
+            document.getElementById('kernel-set').textContent = 
+                kernelPoints.length > 0 ? `[${kernelPoints.slice(0, 3).join(', ')}${kernelPoints.length > 3 ? '...' : ''}]` : '空集';
+            
+            // 对于gauss2mf函数，显示特性说明
+            if (currentFunc === 'gauss2mf') {
+                const c1 = params.c1;
+                const c2 = params.c2;
+                let note = '';
+                if (c1 < c2) {
+                    note = `c₁(${c1.toFixed(1)}) < c₂(${c2.toFixed(1)})，中间部分恒等于1`;
+                } else if (c1 > c2) {
+                    // 计算交点位置
+                    const sigma1Sq = Math.pow(params.sigma1, 2);
+                    const sigma2Sq = Math.pow(params.sigma2, 2);
+                    const intersectionX = (c1 * sigma2Sq + c2 * sigma1Sq) / (sigma1Sq + sigma2Sq);
+                    note = `c₁(${c1.toFixed(1)}) > c₂(${c2.toFixed(1)})，在交点x=${intersectionX.toFixed(2)}处拼接`;
+                } else {
+                    note = `c₁(${c1.toFixed(1)}) = c₂(${c2.toFixed(1)})，最大值=${maxValue.toFixed(3)}`;
+                }
+                document.getElementById('gauss2mf-max-value').textContent = note;
+            }
+        }
+
+        // 动画演示参数影响
+        function animateParams() {
+            if (animationInProgress) return;
+            animationInProgress = true;
+            
+            const originalParams = getCurrentParams();
+            const paramKeys = Object.keys(originalParams);
+            const targetParams = {...originalParams};
+            
+            // 为每个参数设置一个目标值（在合理范围内）
+            for (const key of paramKeys) {
+                const range = paramRanges[currentFunc][key];
+                const currentValue = originalParams[key];
+                
+                // 选择一个不同的目标值
+                if (key.includes('c') || key.includes('center')) {
+                    targetParams[key] = currentValue < 0 ? 5 : -5;
+                } else if (key.includes('sigma') || key.includes('a')) {
+                    targetParams[key] = currentValue < 2.5 ? 4 : 1;
+                } else if (key.includes('b')) {
+                    targetParams[key] = currentValue < 4 ? 6 : 2;
+                } else if (key.includes('d')) {
+                    targetParams[key] = currentValue < 5 ? 8 : 2;
+                }
+            }
+            
+            // 动画步骤
+            const steps = 20;
+            let currentStep = 0;
+            
+            const animationInterval = setInterval(() => {
+                currentStep++;
+                
+                // 计算当前参数（线性插值）
+                const currentParams = {};
+                for (const key of paramKeys) {
+                    currentParams[key] = originalParams[key] + 
+                        (targetParams[key] - originalParams[key]) * (currentStep / steps);
+                    
+                    // 更新控件
+                    const rangeInput = document.getElementById(`${currentFunc}-${key}`);
+                    const numInput = document.getElementById(`${currentFunc}-${key}-val`);
+                    
+                    if (rangeInput && numInput) {
+                        rangeInput.value = currentParams[key];
+                        numInput.value = currentParams[key].toFixed(2);
+                    }
+                }
+                
+                // 更新图表
+                updateChart();
+                updateFunctionInfo();
+                
+                // 如果动画完成
+                if (currentStep >= steps) {
+                    clearInterval(animationInterval);
+                    animationInProgress = false;
+                    
+                    // 短暂延迟后回到原始参数
+                    setTimeout(() => {
+                        applyParams(originalParams);
+                    }, 1000);
+                }
+            }, 100);
+        }
+
+        // 重置参数
+        function resetParams() {
+            applyParams(defaultParams[currentFunc]);
+        }
+
+        // 显示消息
+        function showMessage(message) {
+            // 创建消息元素
+            const messageEl = document.createElement('div');
+            messageEl.textContent = message;
+            messageEl.style.cssText = `
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                background-color: #4a6fa5;
+                color: white;
+                padding: 8px 12px;
+                border-radius: 5px;
+                box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+                z-index: 1000;
+                font-weight: 600;
+                font-size: 0.85rem;
+                animation: slideIn 0.3s ease;
+            `;
+            
+            document.body.appendChild(messageEl);
+            
+            // 2秒后移除
+            setTimeout(() => {
+                messageEl.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => {
+                    document.body.removeChild(messageEl);
+                }, 300);
+            }, 2000);
+            
+            // 添加动画关键帧
+            if (!document.querySelector('#message-animations')) {
+                const style = document.createElement('style');
+                style.id = 'message-animations';
+                style.textContent = `
+                    @keyframes slideIn {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                    @keyframes slideOut {
+                        from { transform: translateX(0); opacity: 1; }
+                        to { transform: translateX(100%); opacity: 0; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+        }
+    </script>
+</body>
+</html>
