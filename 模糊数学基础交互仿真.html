@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>模糊隶属度函数交互仿真</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --accent: #e74c3c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+            --success: #27ae60;
+            --warning: #f39c12;
+        }
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        
+        h1 {
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            color: var(--dark);
+            font-size: 1.2em;
+        }
+        
+        .nav-tabs {
+            display: flex;
+            justify-content: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+        
+        .tab-btn {
+            padding: 12px 24px;
+            background: white;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .tab-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        
+        .tab-btn.active {
+            background: var(--secondary);
+            color: white;
+        }
+        
+        .experiment-container {
+            background: white;
+            border-radius: 10px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
+            display: none;
+        }
+        
+        .experiment-container.active {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .experiment-title {
+            color: var(--primary);
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--light);
+            padding-bottom: 10px;
+        }
+        
+        .control-panel {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .slider-container {
+            margin-bottom: 15px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 8px;
+            border-radius: 5px;
+            background: #ddd;
+            outline: none;
+        }
+        
+        .visualization {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 768px) {
+            .visualization {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 300px;
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .membership-display {
+            text-align: center;
+            padding: 15px;
+            background: var(--light);
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        
+        .membership-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: var(--accent);
+        }
+        
+        .formula {
+            font-family: 'Cambria Math', serif;
+            font-size: 18px;
+            text-align: center;
+            padding: 10px;
+            background: #f8f9fa;
+            border-radius: 5px;
+            margin: 15px 0;
+        }
+        
+        .comparison-result {
+            text-align: center;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            font-weight: bold;
+        }
+        
+        .match {
+            background-color: rgba(39, 174, 96, 0.2);
+            color: var(--success);
+        }
+        
+        .mismatch {
+            background-color: rgba(231, 76, 60, 0.2);
+            color: var(--accent);
+        }
+        
+        .param-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+        
+        .btn {
+            padding: 10px 20px;
+            background: var(--secondary);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background 0.3s;
+        }
+        
+        .btn:hover {
+            background: #2980b9;
+        }
+        
+        .btn-reset {
+            background: var(--accent);
+        }
+        
+        .btn-reset:hover {
+            background: #c0392b;
+        }
+        
+        .theory-box {
+            background: #e8f4fc;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border-left: 4px solid var(--secondary);
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 40px;
+            padding: 20px;
+            color: var(--dark);
+            font-size: 0.9em;
+        }
+        
+        .matrix-input-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .matrix-input {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        
+        .matrix-input h3 {
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+        
+        .matrix-values {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 5px;
+            margin-top: 10px;
+        }
+        
+        .matrix-value {
+            width: 100%;
+            padding: 5px;
+            text-align: center;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .matrix-value:focus {
+            border-color: var(--secondary);
+            outline: none;
+        }
+        
+        .input-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .input-controls button {
+            flex: 1;
+        }
+        
+        .set-label {
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <!-- 修改标题为“模糊隶属度函数交互仿真” -->
+            <h1>模糊隶属度函数交互仿真</h1>
+            <p class="subtitle">自动化专业控制理论课程教学工具</p>
+        </header>
+        
+        <div class="nav-tabs">
+            <button class="tab-btn active" data-tab="experiment1">隶属度概念</button>
+            <button class="tab-btn" data-tab="experiment2">集合运算</button>
+            <button class="tab-btn" data-tab="experiment3">运算性质</button>
+            <button class="tab-btn" data-tab="experiment4">函数形状影响</button>
+        </div>
+        
+        <!-- 实验1：隶属度概念 -->
+        <div id="experiment1" class="experiment-container active">
+            <h2 class="experiment-title">实验1：模糊集合"隶属度"的沉浸式理解</h2>
+            
+            <div class="theory-box">
+                <p><strong>理论背景：</strong>传统集合中，元素要么属于集合，要么不属于集合（0或1）。而在模糊集合中，元素对集合的隶属度可以是0到1之间的任何值，表示属于集合的程度。</p>
+            </div>
+            
+            <div class="control-panel">
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>身高值：</span>
+                        <span id="height-value">1.75 米</span>
+                    </div>
+                    <input type="range" id="height-slider" min="1.5" max="2.1" step="0.01" value="1.75">
+                </div>
+            </div>
+            
+            <div class="visualization">
+                <div class="chart-container">
+                    <h3>传统集合：身高 > 1.8米为"高个子"</h3>
+                    <canvas id="crisp-chart"></canvas>
+                    <div id="crisp-result" class="membership-display">
+                        <p>结果：<span id="crisp-membership">不属于高个子</span></p>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>模糊集合：属于"高个子"的程度</h3>
+                    <canvas id="fuzzy-chart"></canvas>
+                    <div id="fuzzy-result" class="membership-display">
+                        <p>隶属度：<span class="membership-value" id="fuzzy-membership">0.25</span></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 实验2：集合运算 -->
+        <div id="experiment2" class="experiment-container">
+            <h2 class="experiment-title">实验2：模糊集合交、并、补运算</h2>
+            
+            <div class="theory-box">
+                <p><strong>理论背景：</strong>模糊集合的基本运算包括交集(∩)、并集(∪)和补集(¬)。交集通常取最小值，并集取最大值，补集为1减去原隶属度。</p>
+            </div>
+            
+            <div class="control-panel">
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>选择算子类型：</span>
+                        <select id="operator-select">
+                            <option value="minmax">标准min-max算子</option>
+                            <option value="product">乘积算子</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="matrix-input-container">
+                <div class="matrix-input">
+                    <h3>模糊集合 A</h3>
+                    <div class="matrix-values" id="matrix-a-values">
+                        <!-- 矩阵A的值将通过JavaScript生成 -->
+                    </div>
+                    <div class="input-controls">
+                        <button class="btn" id="apply-matrix-a">应用集合A</button>
+                        <button class="btn btn-reset" id="reset-matrix-a">重置</button>
+                    </div>
+                </div>
+                
+                <div class="matrix-input">
+                    <h3>模糊集合 B</h3>
+                    <div class="matrix-values" id="matrix-b-values">
+                        <!-- 矩阵B的值将通过JavaScript生成 -->
+                    </div>
+                    <div class="input-controls">
+                        <button class="btn" id="apply-matrix-b">应用集合B</button>
+                        <button class="btn btn-reset" id="reset-matrix-b">重置</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="visualization">
+                <div class="chart-container">
+                    <h3>模糊集合 A 和 B</h3>
+                    <canvas id="sets-ab-chart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>运算结果</h3>
+                    <canvas id="operations-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="formula" id="current-formula">
+                μ<sub>A∩B</sub>(x) = min(μ<sub>A</sub>(x), μ<sub>B</sub>(x))
+            </div>
+        </div>
+        
+        <!-- 实验3：运算性质 -->
+        <div id="experiment3" class="experiment-container">
+            <h2 class="experiment-title">实验3：模糊运算性质验证器</h2>
+            
+            <div class="theory-box">
+                <p><strong>理论背景：</strong>模糊集合的运算是否满足交换律、结合律、分配律、德摩根定律等性质？这些性质在不同算子下可能成立或不成立。</p>
+            </div>
+            
+            <div class="control-panel">
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>选择验证定律：</span>
+                        <select id="law-select">
+                            <option value="distributive">分配律: A ∩ (B ∪ C) = (A ∩ B) ∪ (A ∩ C)</option>
+                            <option value="demorgan1">德摩根律1: ¬(A ∪ B) = ¬A ∩ ¬B</option>
+                            <option value="demorgan2">德摩根律2: ¬(A ∩ B) = ¬A ∪ ¬B</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="matrix-input-container">
+                <div class="matrix-input">
+                    <h3>模糊集合 A</h3>
+                    <div class="matrix-values" id="matrix-a-values-law">
+                        <!-- 矩阵A的值将通过JavaScript生成 -->
+                    </div>
+                    <div class="input-controls">
+                        <button class="btn" id="apply-matrix-a-law">应用集合A</button>
+                        <button class="btn btn-reset" id="reset-matrix-a-law">重置</button>
+                    </div>
+                </div>
+                
+                <div class="matrix-input">
+                    <h3>模糊集合 B</h3>
+                    <div class="matrix-values" id="matrix-b-values-law">
+                        <!-- 矩阵B的值将通过JavaScript生成 -->
+                    </div>
+                    <div class="input-controls">
+                        <button class="btn" id="apply-matrix-b-law">应用集合B</button>
+                        <button class="btn btn-reset" id="reset-matrix-b-law">重置</button>
+                    </div>
+                </div>
+                
+                <div class="matrix-input">
+                    <h3>模糊集合 C</h3>
+                    <div class="matrix-values" id="matrix-c-values-law">
+                        <!-- 矩阵C的值将通过JavaScript生成 -->
+                    </div>
+                    <div class="input-controls">
+                        <button class="btn" id="apply-matrix-c-law">应用集合C</button>
+                        <button class="btn btn-reset" id="reset-matrix-c-law">重置</button>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="visualization">
+                <div class="chart-container">
+                    <h3>左侧: <span id="left-expression"></span></h3>
+                    <canvas id="left-law-chart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>右侧: <span id="right-expression"></span></h3>
+                    <canvas id="right-law-chart"></canvas>
+                </div>
+            </div>
+            
+            <div id="law-result" class="comparison-result">
+                <!-- 结果将动态显示在这里 -->
+            </div>
+        </div>
+        
+        <!-- 实验4：函数形状影响 -->
+        <div id="experiment4" class="experiment-container">
+            <h2 class="experiment-title">实验4：隶属函数形状对系统的影响</h2>
+            
+            <div class="theory-box">
+                <p><strong>理论背景：</strong>隶属函数的形状（三角形、高斯形、梯形、S形等）和参数会显著影响模糊系统的性能。不同形状的隶属函数有不同的数学表达式和参数。</p>
+            </div>
+            
+            <div class="control-panel">
+                <div class="slider-container">
+                    <div class="slider-label">
+                        <span>隶属函数类型：</span>
+                        <select id="shape-select">
+                            <option value="triangle">三角形函数</option>
+                            <option value="gaussian">高斯函数</option>
+                            <option value="trapezoid">梯形函数</option>
+                            <option value="sigmoid">S形函数</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="param-controls" id="param-controls">
+                    <!-- 参数控件将根据选择的函数类型动态生成 -->
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <button class="btn" id="compare-shapes">比较不同形状</button>
+                    <button class="btn btn-reset" id="reset-shapes">重置</button>
+                </div>
+            </div>
+            
+            <div class="visualization">
+                <div class="chart-container">
+                    <h3>隶属函数形状</h3>
+                    <canvas id="shape-chart"></canvas>
+                </div>
+                
+                <div class="chart-container">
+                    <h3>不同形状比较</h3>
+                    <canvas id="comparison-chart"></canvas>
+                </div>
+            </div>
+            
+            <div class="theory-box">
+                <p id="function-info">
+                    <!-- 函数信息将动态显示在这里 -->
+                </p>
+            </div>
+        </div>
+        
+        <!-- 修改后的版权说明，归属“2026 ChenXixiang2046. All Rights Reserved” -->
+        <footer>
+            <p>© 2026 ChenXixiang2046. All Rights Reserved.</p>
+        </footer>
+    </div>
+
+    <script>
+        // 全局变量和初始化
+        let currentTab = 'experiment1';
+        let charts = {};
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            // 初始化选项卡
+            initTabs();
+            
+            // 初始化各个实验
+            initExperiment1();
+            initExperiment2();
+            initExperiment3();
+            initExperiment4();
+        });
+        
+        // 选项卡初始化
+        function initTabs() {
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            
+            tabButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const tabId = this.getAttribute('data-tab');
+                    
+                    // 更新活动选项卡按钮
+                    tabButtons.forEach(btn => btn.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    // 更新活动实验容器
+                    document.querySelectorAll('.experiment-container').forEach(container => {
+                        container.classList.remove('active');
+                    });
+                    document.getElementById(tabId).classList.add('active');
+                    
+                    currentTab = tabId;
+                    
+                    // 调整图表大小以适应新容器
+                    setTimeout(() => {
+                        Object.values(charts).forEach(chart => {
+                            if (chart && typeof chart.resize === 'function') {
+                                chart.resize();
+                            }
+                        });
+                    }, 100);
+                });
+            });
+        }
+        
+        // 实验1：隶属度概念
+        function initExperiment1() {
+            const heightSlider = document.getElementById('height-slider');
+            const heightValue = document.getElementById('height-value');
+            const crispMembership = document.getElementById('crisp-membership');
+            const fuzzyMembership = document.getElementById('fuzzy-membership');
+            
+            // 初始化图表
+            const crispCtx = document.getElementById('crisp-chart').getContext('2d');
+            const fuzzyCtx = document.getElementById('fuzzy-chart').getContext('2d');
+            
+            charts.crispChart = new Chart(crispCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['非高个子', '高个子'],
+                    datasets: [{
+                        label: '传统集合',
+                        data: [1, 0],
+                        backgroundColor: ['#e74c3c', '#3498db'],
+                        borderColor: ['#c0392b', '#2980b9'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            ticks: {
+                                stepSize: 0.5
+                            }
+                        }
+                    }
+                }
+            });
+            
+            charts.fuzzyChart = new Chart(fuzzyCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 13}, (_, i) => (1.5 + i * 0.05).toFixed(2)),
+                    datasets: [{
+                        label: '隶属度',
+                        data: calculateFuzzyMembership(1.75),
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: '隶属度'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '身高 (米)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 更新函数
+            function updateExperiment1() {
+                const height = parseFloat(heightSlider.value);
+                heightValue.textContent = height.toFixed(2) + ' 米';
+                
+                // 更新传统集合显示
+                const isTall = height > 1.8;
+                charts.crispChart.data.datasets[0].data = isTall ? [0, 1] : [1, 0];
+                crispMembership.textContent = isTall ? '属于高个子' : '不属于高个子';
+                charts.crispChart.update();
+                
+                // 更新模糊集合显示
+                const membership = calculateMembership(height);
+                fuzzyMembership.textContent = membership.toFixed(2);
+                
+                // 更新模糊图表中的标记点
+                const allHeights = Array.from({length: 13}, (_, i) => 1.5 + i * 0.05);
+                const memberships = allHeights.map(h => calculateMembership(h));
+                
+                charts.fuzzyChart.data.datasets[0].data = memberships;
+                charts.fuzzyChart.update();
+            }
+            
+            // 计算隶属度的函数
+            function calculateMembership(height) {
+                if (height <= 1.7) return 0;
+                if (height >= 1.9) return 1;
+                return (height - 1.7) / 0.2;
+            }
+            
+            function calculateFuzzyMembership(currentHeight) {
+                const heights = Array.from({length: 13}, (_, i) => 1.5 + i * 0.05);
+                return heights.map(h => calculateMembership(h));
+            }
+            
+            // 绑定事件
+            heightSlider.addEventListener('input', updateExperiment1);
+            
+            // 初始更新
+            updateExperiment1();
+        }
+        
+        // 实验2：集合运算
+        function initExperiment2() {
+            const operatorSelect = document.getElementById('operator-select');
+            const formulaElement = document.getElementById('current-formula');
+            const matrixAValues = document.getElementById('matrix-a-values');
+            const matrixBValues = document.getElementById('matrix-b-values');
+            const applyMatrixA = document.getElementById('apply-matrix-a');
+            const applyMatrixB = document.getElementById('apply-matrix-b');
+            const resetMatrixA = document.getElementById('reset-matrix-a');
+            const resetMatrixB = document.getElementById('reset-matrix-b');
+            
+            // 初始化矩阵输入
+            function initMatrixInputs() {
+                // 清空现有内容
+                matrixAValues.innerHTML = '';
+                matrixBValues.innerHTML = '';
+                
+                // 创建21个输入框，对应论域0-20
+                for (let i = 0; i < 21; i++) {
+                    const inputA = document.createElement('input');
+                    inputA.type = 'number';
+                    inputA.className = 'matrix-value';
+                    inputA.min = 0;
+                    inputA.max = 1;
+                    inputA.step = 0.1;
+                    inputA.value = calculateDefaultSetA(i).toFixed(1);
+                    inputA.dataset.index = i;
+                    
+                    const inputB = document.createElement('input');
+                    inputB.type = 'number';
+                    inputB.className = 'matrix-value';
+                    inputB.min = 0;
+                    inputB.max = 1;
+                    inputB.step = 0.1;
+                    inputB.value = calculateDefaultSetB(i).toFixed(1);
+                    inputB.dataset.index = i;
+                    
+                    matrixAValues.appendChild(inputA);
+                    matrixBValues.appendChild(inputB);
+                }
+            }
+            
+            // 计算默认集合A
+            function calculateDefaultSetA(x) {
+                if (x <= 5) return 0;
+                if (x >= 10) return 1;
+                return (x - 5) / 5;
+            }
+            
+            // 计算默认集合B
+            function calculateDefaultSetB(x) {
+                if (x <= 10) return 0;
+                if (x >= 15) return 1;
+                return (x - 10) / 5;
+            }
+            
+            // 获取当前集合A的值
+            function getSetA() {
+                const inputs = matrixAValues.querySelectorAll('input');
+                return Array.from(inputs).map(input => parseFloat(input.value) || 0);
+            }
+            
+            // 获取当前集合B的值
+            function getSetB() {
+                const inputs = matrixBValues.querySelectorAll('input');
+                return Array.from(inputs).map(input => parseFloat(input.value) || 0);
+            }
+            
+            // 重置集合A为默认值
+            function resetSetA() {
+                const inputs = matrixAValues.querySelectorAll('input');
+                inputs.forEach((input, i) => {
+                    input.value = calculateDefaultSetA(i).toFixed(1);
+                });
+                updateOperations();
+            }
+            
+            // 重置集合B为默认值
+            function resetSetB() {
+                const inputs = matrixBValues.querySelectorAll('input');
+                inputs.forEach((input, i) => {
+                    input.value = calculateDefaultSetB(i).toFixed(1);
+                });
+                updateOperations();
+            }
+            
+            // 初始化图表
+            const setsABCtx = document.getElementById('sets-ab-chart').getContext('2d');
+            const operationsCtx = document.getElementById('operations-chart').getContext('2d');
+            
+            charts.setsABChart = new Chart(setsABCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 21}, (_, i) => i),
+                    datasets: [
+                        {
+                            label: '集合 A',
+                            data: getSetA(),
+                            borderColor: '#3498db',
+                            backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: '集合 B',
+                            data: getSetB(),
+                            borderColor: '#e74c3c',
+                            backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: '隶属度'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '论域 X'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            charts.operationsChart = new Chart(operationsCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 21}, (_, i) => i),
+                    datasets: [
+                        {
+                            label: 'A ∩ B (交集)',
+                            data: calculateIntersection('minmax'),
+                            borderColor: '#27ae60',
+                            backgroundColor: 'rgba(39, 174, 96, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'A ∪ B (并集)',
+                            data: calculateUnion('minmax'),
+                            borderColor: '#f39c12',
+                            backgroundColor: 'rgba(243, 156, 18, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4
+                        },
+                        {
+                            label: '¬A (补集)',
+                            data: calculateComplement('minmax'),
+                            borderColor: '#9b59b6',
+                            backgroundColor: 'rgba(155, 89, 182, 0.1)',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0.4,
+                            borderDash: [5, 5]
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: '隶属度'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '论域 X'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 计算交集
+            function calculateIntersection(operator) {
+                const setA = getSetA();
+                const setB = getSetB();
+                
+                return Array.from({length: 21}, (_, i) => {
+                    if (operator === 'minmax') {
+                        return Math.min(setA[i], setB[i]);
+                    } else { // product
+                        return setA[i] * setB[i];
+                    }
+                });
+            }
+            
+            // 计算并集
+            function calculateUnion(operator) {
+                const setA = getSetA();
+                const setB = getSetB();
+                
+                return Array.from({length: 21}, (_, i) => {
+                    if (operator === 'minmax') {
+                        return Math.max(setA[i], setB[i]);
+                    } else { // product
+                        return setA[i] + setB[i] - setA[i] * setB[i];
+                    }
+                });
+            }
+            
+            // 计算补集
+            function calculateComplement(operator) {
+                const setA = getSetA();
+                
+                return Array.from({length: 21}, (_, i) => {
+                    return 1 - setA[i];
+                });
+            }
+            
+            // 更新运算结果
+            function updateOperations() {
+                const operator = operatorSelect.value;
+                
+                // 更新集合图表
+                charts.setsABChart.data.datasets[0].data = getSetA();
+                charts.setsABChart.data.datasets[1].data = getSetB();
+                charts.setsABChart.update();
+                
+                // 更新运算结果图表
+                charts.operationsChart.data.datasets[0].data = calculateIntersection(operator);
+                charts.operationsChart.data.datasets[1].data = calculateUnion(operator);
+                charts.operationsChart.data.datasets[2].data = calculateComplement(operator);
+                charts.operationsChart.update();
+                
+                // 更新公式显示
+                if (operator === 'minmax') {
+                    formulaElement.innerHTML = `
+                        μ<sub>A∩B</sub>(x) = min(μ<sub>A</sub>(x), μ<sub>B</sub>(x))<br>
+                        μ<sub>A∪B</sub>(x) = max(μ<sub>A</sub>(x), μ<sub>B</sub>(x))<br>
+                        μ<sub>¬A</sub>(x) = 1 - μ<sub>A</sub>(x)
+                    `;
+                } else {
+                    formulaElement.innerHTML = `
+                        μ<sub>A∩B</sub>(x) = μ<sub>A</sub>(x) × μ<sub>B</sub>(x)<br>
+                        μ<sub>A∪B</sub>(x) = μ<sub>A</sub>(x) + μ<sub>B</sub>(x) - μ<sub>A</sub>(x) × μ<sub>B</sub>(x)<br>
+                        μ<sub>¬A</sub>(x) = 1 - μ<sub>A</sub>(x)
+                    `;
+                }
+            }
+            
+            // 绑定事件
+            operatorSelect.addEventListener('change', updateOperations);
+            applyMatrixA.addEventListener('click', updateOperations);
+            applyMatrixB.addEventListener('click', updateOperations);
+            resetMatrixA.addEventListener('click', resetSetA);
+            resetMatrixB.addEventListener('click', resetSetB);
+            
+            // 初始更新
+            initMatrixInputs();
+            updateOperations();
+        }
+        
+        // 实验3：运算性质
+        function initExperiment3() {
+            const lawSelect = document.getElementById('law-select');
+            const leftExpression = document.getElementById('left-expression');
+            const rightExpression = document.getElementById('right-expression');
+            const lawResult = document.getElementById('law-result');
+            const matrixAValues = document.getElementById('matrix-a-values-law');
+            const matrixBValues = document.getElementById('matrix-b-values-law');
+            const matrixCValues = document.getElementById('matrix-c-values-law');
+            const applyMatrixA = document.getElementById('apply-matrix-a-law');
+            const applyMatrixB = document.getElementById('apply-matrix-b-law');
+            const applyMatrixC = document.getElementById('apply-matrix-c-law');
+            const resetMatrixA = document.getElementById('reset-matrix-a-law');
+            const resetMatrixB = document.getElementById('reset-matrix-b-law');
+            const resetMatrixC = document.getElementById('reset-matrix-c-law');
+            
+            // 初始化矩阵输入
+            function initMatrixInputs() {
+                // 清空现有内容
+                matrixAValues.innerHTML = '';
+                matrixBValues.innerHTML = '';
+                matrixCValues.innerHTML = '';
+                
+                // 创建21个输入框，对应论域0-20
+                for (let i = 0; i < 21; i++) {
+                    const inputA = document.createElement('input');
+                    inputA.type = 'number';
+                    inputA.className = 'matrix-value';
+                    inputA.min = 0;
+                    inputA.max = 1;
+                    inputA.step = 0.1;
+                    inputA.value = calculateDefaultSetA(i).toFixed(1);
+                    inputA.dataset.index = i;
+                    
+                    const inputB = document.createElement('input');
+                    inputB.type = 'number';
+                    inputB.className = 'matrix-value';
+                    inputB.min = 0;
+                    inputB.max = 1;
+                    inputB.step = 0.1;
+                    inputB.value = calculateDefaultSetB(i).toFixed(1);
+                    inputB.dataset.index = i;
+                    
+                    const inputC = document.createElement('input');
+                    inputC.type = 'number';
+                    inputC.className = 'matrix-value';
+                    inputC.min = 0;
+                    inputC.max = 1;
+                    inputC.step = 0.1;
+                    inputC.value = calculateDefaultSetC(i).toFixed(1);
+                    inputC.dataset.index = i;
+                    
+                    matrixAValues.appendChild(inputA);
+                    matrixBValues.appendChild(inputB);
+                    matrixCValues.appendChild(inputC);
+                }
+            }
+            
+            // 计算默认集合A
+            function calculateDefaultSetA(x) {
+                if (x <= 5) return 0;
+                if (x >= 10) return 1;
+                return (x - 5) / 5;
+            }
+            
+            // 计算默认集合B
+            function calculateDefaultSetB(x) {
+                if (x <= 8) return 0;
+                if (x >= 13) return 1;
+                return (x - 8) / 5;
+            }
+            
+            // 计算默认集合C
+            function calculateDefaultSetC(x) {
+                if (x <= 12) return 0;
+                if (x >= 17) return 1;
+                return (x - 12) / 5;
+            }
+            
+            // 获取当前集合A的值
+            function getSetA() {
+                const inputs = matrixAValues.querySelectorAll('input');
+                return Array.from(inputs).map(input => parseFloat(input.value) || 0);
+            }
+            
+            // 获取当前集合B的值
+            function getSetB() {
+                const inputs = matrixBValues.querySelectorAll('input');
+                return Array.from(inputs).map(input => parseFloat(input.value) || 0);
+            }
+            
+            // 获取当前集合C的值
+            function getSetC() {
+                const inputs = matrixCValues.querySelectorAll('input');
+                return Array.from(inputs).map(input => parseFloat(input.value) || 0);
+            }
+            
+            // 重置集合A为默认值
+            function resetSetA() {
+                const inputs = matrixAValues.querySelectorAll('input');
+                inputs.forEach((input, i) => {
+                    input.value = calculateDefaultSetA(i).toFixed(1);
+                });
+                updateLawVerification();
+            }
+            
+            // 重置集合B为默认值
+            function resetSetB() {
+                const inputs = matrixBValues.querySelectorAll('input');
+                inputs.forEach((input, i) => {
+                    input.value = calculateDefaultSetB(i).toFixed(1);
+                });
+                updateLawVerification();
+            }
+            
+            // 重置集合C为默认值
+            function resetSetC() {
+                const inputs = matrixCValues.querySelectorAll('input');
+                inputs.forEach((input, i) => {
+                    input.value = calculateDefaultSetC(i).toFixed(1);
+                });
+                updateLawVerification();
+            }
+            
+            // 初始化图表
+            const leftLawCtx = document.getElementById('left-law-chart').getContext('2d');
+            const rightLawCtx = document.getElementById('right-law-chart').getContext('2d');
+            
+            charts.leftLawChart = new Chart(leftLawCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 21}, (_, i) => i),
+                    datasets: [{
+                        label: '左侧表达式',
+                        data: new Array(21).fill(0),
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: '隶属度'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '论域 X'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            charts.rightLawChart = new Chart(rightLawCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 21}, (_, i) => i),
+                    datasets: [{
+                        label: '右侧表达式',
+                        data: new Array(21).fill(0),
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: '隶属度'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '论域 X'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 计算补集
+            function complement(set) {
+                return set.map(value => 1 - value);
+            }
+            
+            // 计算交集
+            function intersection(set1, set2) {
+                return Array.from({length: 21}, (_, i) => Math.min(set1[i], set2[i]));
+            }
+            
+            // 计算并集
+            function union(set1, set2) {
+                return Array.from({length: 21}, (_, i) => Math.max(set1[i], set2[i]));
+            }
+            
+            // 更新定律验证
+            function updateLawVerification() {
+                const law = lawSelect.value;
+                const setA = getSetA();
+                const setB = getSetB();
+                const setC = getSetC();
+                
+                let leftData, rightData;
+                let leftText, rightText;
+                
+                switch(law) {
+                    case 'distributive':
+                        leftData = intersection(setA, union(setB, setC));
+                        rightData = union(intersection(setA, setB), intersection(setA, setC));
+                        leftText = 'A ∩ (B ∪ C)';
+                        rightText = '(A ∩ B) ∪ (A ∩ C)';
+                        break;
+                    case 'demorgan1':
+                        leftData = complement(union(setA, setB));
+                        rightData = intersection(complement(setA), complement(setB));
+                        leftText = '¬(A ∪ B)';
+                        rightText = '¬A ∩ ¬B';
+                        break;
+                    case 'demorgan2':
+                        leftData = complement(intersection(setA, setB));
+                        rightData = union(complement(setA), complement(setB));
+                        leftText = '¬(A ∩ B)';
+                        rightText = '¬A ∪ ¬B';
+                        break;
+                }
+                
+                // 更新表达式文本
+                leftExpression.textContent = leftText;
+                rightExpression.textContent = rightText;
+                
+                // 更新图表数据
+                charts.leftLawChart.data.datasets[0].data = leftData;
+                charts.rightLawChart.data.datasets[0].data = rightData;
+                charts.leftLawChart.update();
+                charts.rightLawChart.update();
+                
+                // 检查是否相等
+                let isEqual = true;
+                for (let i = 0; i < 21; i++) {
+                    if (Math.abs(leftData[i] - rightData[i]) > 0.01) {
+                        isEqual = false;
+                        break;
+                    }
+                }
+                
+                // 更新结果
+                if (isEqual) {
+                    lawResult.textContent = `定律成立！${leftText} = ${rightText}`;
+                    lawResult.className = 'comparison-result match';
+                } else {
+                    lawResult.textContent = `定律不成立！${leftText} ≠ ${rightText}`;
+                    lawResult.className = 'comparison-result mismatch';
+                }
+            }
+            
+            // 绑定事件
+            lawSelect.addEventListener('change', updateLawVerification);
+            applyMatrixA.addEventListener('click', updateLawVerification);
+            applyMatrixB.addEventListener('click', updateLawVerification);
+            applyMatrixC.addEventListener('click', updateLawVerification);
+            resetMatrixA.addEventListener('click', resetSetA);
+            resetMatrixB.addEventListener('click', resetSetB);
+            resetMatrixC.addEventListener('click', resetSetC);
+            
+            // 初始更新
+            initMatrixInputs();
+            updateLawVerification();
+        }
+        
+        // 实验4：函数形状影响
+        function initExperiment4() {
+            const shapeSelect = document.getElementById('shape-select');
+            const paramControls = document.getElementById('param-controls');
+            const compareButton = document.getElementById('compare-shapes');
+            const resetButton = document.getElementById('reset-shapes');
+            const functionInfo = document.getElementById('function-info');
+            
+            // 当前参数值
+            let currentParams = {
+                triangle: { a: 3, b: 8, c: 13 },
+                gaussian: { mean: 8, sigma: 2 },
+                trapezoid: { a: 2, b: 5, c: 11, d: 14 },
+                sigmoid: { a: 0.5, c: 8 }
+            };
+            
+            // 初始化图表
+            const shapeCtx = document.getElementById('shape-chart').getContext('2d');
+            const comparisonCtx = document.getElementById('comparison-chart').getContext('2d');
+            
+            charts.shapeChart = new Chart(shapeCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 21}, (_, i) => i),
+                    datasets: [{
+                        label: '隶属函数',
+                        data: calculateTriangleFunction(currentParams.triangle),
+                        borderColor: '#3498db',
+                        backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: '隶属度'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '论域 X'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            charts.comparisonChart = new Chart(comparisonCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 21}, (_, i) => i),
+                    datasets: [
+                        {
+                            label: '三角形',
+                            data: calculateTriangleFunction({a: 3, b: 8, c: 13}),
+                            borderColor: '#3498db',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0
+                        },
+                        {
+                            label: '高斯',
+                            data: calculateGaussianFunction({mean: 8, sigma: 2}),
+                            borderColor: '#e74c3c',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0
+                        },
+                        {
+                            label: '梯形',
+                            data: calculateTrapezoidFunction({a: 2, b: 5, c: 11, d: 14}),
+                            borderColor: '#2ecc71',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0
+                        },
+                        {
+                            label: 'S形',
+                            data: calculateSigmoidFunction({a: 0.5, c: 8}),
+                            borderColor: '#9b59b6',
+                            borderWidth: 2,
+                            fill: false,
+                            tension: 0
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: {
+                                display: true,
+                                text: '隶属度'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '论域 X'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 计算三角形隶属函数
+            function calculateTriangleFunction(params) {
+                const { a, b, c } = params;
+                return Array.from({length: 21}, (_, i) => {
+                    const x = i;
+                    if (x <= a) return 0;
+                    if (x >= c) return 0;
+                    if (x <= b) return (x - a) / (b - a);
+                    return (c - x) / (c - b);
+                });
+            }
+            
+            // 计算高斯隶属函数
+            function calculateGaussianFunction(params) {
+                const { mean, sigma } = params;
+                return Array.from({length: 21}, (_, i) => {
+                    const x = i;
+                    return Math.exp(-Math.pow(x - mean, 2) / (2 * Math.pow(sigma, 2)));
+                });
+            }
+            
+            // 计算梯形隶属函数
+            function calculateTrapezoidFunction(params) {
+                const { a, b, c, d } = params;
+                return Array.from({length: 21}, (_, i) => {
+                    const x = i;
+                    if (x <= a) return 0;
+                    if (x >= d) return 0;
+                    if (x <= b) return (x - a) / (b - a);
+                    if (x >= c) return (d - x) / (d - c);
+                    return 1;
+                });
+            }
+            
+            // 计算S形隶属函数
+            function calculateSigmoidFunction(params) {
+                const { a, c } = params;
+                return Array.from({length: 21}, (_, i) => {
+                    const x = i;
+                    return 1 / (1 + Math.exp(-a * (x - c)));
+                });
+            }
+            
+            // 更新参数控件
+            function updateParamControls(shape) {
+                paramControls.innerHTML = '';
+                
+                switch(shape) {
+                    case 'triangle':
+                        paramControls.innerHTML = `
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>左边界 a:</span>
+                                    <span id="triangle-a-value">${currentParams.triangle.a}</span>
+                                </div>
+                                <input type="range" id="triangle-a-slider" min="0" max="10" step="0.5" value="${currentParams.triangle.a}">
+                            </div>
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>顶点 b:</span>
+                                    <span id="triangle-b-value">${currentParams.triangle.b}</span>
+                                </div>
+                                <input type="range" id="triangle-b-slider" min="5" max="15" step="0.5" value="${currentParams.triangle.b}">
+                            </div>
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>右边界 c:</span>
+                                    <span id="triangle-c-value">${currentParams.triangle.c}</span>
+                                </div>
+                                <input type="range" id="triangle-c-slider" min="10" max="20" step="0.5" value="${currentParams.triangle.c}">
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'gaussian':
+                        paramControls.innerHTML = `
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>均值 μ:</span>
+                                    <span id="gaussian-mean-value">${currentParams.gaussian.mean}</span>
+                                </div>
+                                <input type="range" id="gaussian-mean-slider" min="0" max="20" step="0.5" value="${currentParams.gaussian.mean}">
+                            </div>
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>标准差 σ:</span>
+                                    <span id="gaussian-sigma-value">${currentParams.gaussian.sigma}</span>
+                                </div>
+                                <input type="range" id="gaussian-sigma-slider" min="0.5" max="5" step="0.1" value="${currentParams.gaussian.sigma}">
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'trapezoid':
+                        paramControls.innerHTML = `
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>左边界 a:</span>
+                                    <span id="trapezoid-a-value">${currentParams.trapezoid.a}</span>
+                                </div>
+                                <input type="range" id="trapezoid-a-slider" min="0" max="10" step="0.5" value="${currentParams.trapezoid.a}">
+                            </div>
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>左上点 b:</span>
+                                    <span id="trapezoid-b-value">${currentParams.trapezoid.b}</span>
+                                </div>
+                                <input type="range" id="trapezoid-b-slider" min="2" max="12" step="0.5" value="${currentParams.trapezoid.b}">
+                            </div>
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>右上点 c:</span>
+                                    <span id="trapezoid-c-value">${currentParams.trapezoid.c}</span>
+                                </div>
+                                <input type="range" id="trapezoid-c-slider" min="8" max="18" step="0.5" value="${currentParams.trapezoid.c}">
+                            </div>
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>右边界 d:</span>
+                                    <span id="trapezoid-d-value">${currentParams.trapezoid.d}</span>
+                                </div>
+                                <input type="range" id="trapezoid-d-slider" min="12" max="20" step="0.5" value="${currentParams.trapezoid.d}">
+                            </div>
+                        `;
+                        break;
+                    
+                    case 'sigmoid':
+                        paramControls.innerHTML = `
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>斜率 a:</span>
+                                    <span id="sigmoid-a-value">${currentParams.sigmoid.a}</span>
+                                </div>
+                                <input type="range" id="sigmoid-a-slider" min="0.1" max="2" step="0.1" value="${currentParams.sigmoid.a}">
+                            </div>
+                            <div class="slider-container">
+                                <div class="slider-label">
+                                    <span>中心点 c:</span>
+                                    <span id="sigmoid-c-value">${currentParams.sigmoid.c}</span>
+                                </div>
+                                <input type="range" id="sigmoid-c-slider" min="0" max="20" step="0.5" value="${currentParams.sigmoid.c}">
+                            </div>
+                        `;
+                        break;
+                }
+                
+                // 绑定新创建的滑块事件
+                bindParamEvents(shape);
+            }
+            
+            // 绑定参数事件
+            function bindParamEvents(shape) {
+                switch(shape) {
+                    case 'triangle':
+                        document.getElementById('triangle-a-slider').addEventListener('input', function() {
+                            currentParams.triangle.a = parseFloat(this.value);
+                            document.getElementById('triangle-a-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        document.getElementById('triangle-b-slider').addEventListener('input', function() {
+                            currentParams.triangle.b = parseFloat(this.value);
+                            document.getElementById('triangle-b-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        document.getElementById('triangle-c-slider').addEventListener('input', function() {
+                            currentParams.triangle.c = parseFloat(this.value);
+                            document.getElementById('triangle-c-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        break;
+                    
+                    case 'gaussian':
+                        document.getElementById('gaussian-mean-slider').addEventListener('input', function() {
+                            currentParams.gaussian.mean = parseFloat(this.value);
+                            document.getElementById('gaussian-mean-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        document.getElementById('gaussian-sigma-slider').addEventListener('input', function() {
+                            currentParams.gaussian.sigma = parseFloat(this.value);
+                            document.getElementById('gaussian-sigma-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        break;
+                    
+                    case 'trapezoid':
+                        document.getElementById('trapezoid-a-slider').addEventListener('input', function() {
+                            currentParams.trapezoid.a = parseFloat(this.value);
+                            document.getElementById('trapezoid-a-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        document.getElementById('trapezoid-b-slider').addEventListener('input', function() {
+                            currentParams.trapezoid.b = parseFloat(this.value);
+                            document.getElementById('trapezoid-b-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        document.getElementById('trapezoid-c-slider').addEventListener('input', function() {
+                            currentParams.trapezoid.c = parseFloat(this.value);
+                            document.getElementById('trapezoid-c-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        document.getElementById('trapezoid-d-slider').addEventListener('input', function() {
+                            currentParams.trapezoid.d = parseFloat(this.value);
+                            document.getElementById('trapezoid-d-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        break;
+                    
+                    case 'sigmoid':
+                        document.getElementById('sigmoid-a-slider').addEventListener('input', function() {
+                            currentParams.sigmoid.a = parseFloat(this.value);
+                            document.getElementById('sigmoid-a-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        document.getElementById('sigmoid-c-slider').addEventListener('input', function() {
+                            currentParams.sigmoid.c = parseFloat(this.value);
+                            document.getElementById('sigmoid-c-value').textContent = this.value;
+                            updateShapeChart();
+                        });
+                        break;
+                }
+            }
+            
+            // 更新形状图表
+            function updateShapeChart() {
+                const shape = shapeSelect.value;
+                let data;
+                
+                switch(shape) {
+                    case 'triangle':
+                        data = calculateTriangleFunction(currentParams.triangle);
+                        charts.shapeChart.data.datasets[0].label = '三角形函数';
+                        charts.shapeChart.data.datasets[0].borderColor = '#3498db';
+                        break;
+                    case 'gaussian':
+                        data = calculateGaussianFunction(currentParams.gaussian);
+                        charts.shapeChart.data.datasets[0].label = '高斯函数';
+                        charts.shapeChart.data.datasets[0].borderColor = '#e74c3c';
+                        break;
+                    case 'trapezoid':
+                        data = calculateTrapezoidFunction(currentParams.trapezoid);
+                        charts.shapeChart.data.datasets[0].label = '梯形函数';
+                        charts.shapeChart.data.datasets[0].borderColor = '#2ecc71';
+                        break;
+                    case 'sigmoid':
+                        data = calculateSigmoidFunction(currentParams.sigmoid);
+                        charts.shapeChart.data.datasets[0].label = 'S形函数';
+                        charts.shapeChart.data.datasets[0].borderColor = '#9b59b6';
+                        break;
+                }
+                
+                charts.shapeChart.data.datasets[0].data = data;
+                charts.shapeChart.update();
+                
+                // 更新函数信息
+                updateFunctionInfo(shape);
+            }
+            
+            // 更新函数信息
+            function updateFunctionInfo(shape) {
+                let info = '';
+                
+                switch(shape) {
+                    case 'triangle':
+                        info = `
+                            <strong>三角形隶属函数：</strong><br>
+                            数学表达式：μ(x) = max(0, min((x-a)/(b-a), (c-x)/(c-b)))<br>
+                            参数说明：
+                            <ul>
+                                <li>a: 左边界，隶属度为0的点</li>
+                                <li>b: 顶点，隶属度为1的点</li>
+                                <li>c: 右边界，隶属度为0的点</li>
+                            </ul>
+                            特点：计算简单，广泛应用于模糊控制系统。
+                        `;
+                        break;
+                    
+                    case 'gaussian':
+                        info = `
+                            <strong>高斯隶属函数：</strong><br>
+                            数学表达式：μ(x) = exp(-(x-μ)²/(2σ²))<br>
+                            参数说明：
+                            <ul>
+                                <li>μ: 均值，函数的中心点</li>
+                                <li>σ: 标准差，控制函数的宽度</li>
+                            </ul>
+                            特点：光滑连续，适合表示"大约"的概念。
+                        `;
+                        break;
+                    
+                    case 'trapezoid':
+                        info = `
+                            <strong>梯形隶属函数：</strong><br>
+                            数学表达式：μ(x) = max(0, min(1, (x-a)/(b-a), (d-x)/(d-c)))<br>
+                            参数说明：
+                            <ul>
+                                <li>a: 左边界，隶属度为0的点</li>
+                                <li>b: 左上点，隶属度开始为1的点</li>
+                                <li>c: 右上点，隶属度结束为1的点</li>
+                                <li>d: 右边界，隶属度为0的点</li>
+                            </ul>
+                            特点：具有平坦的顶部，适合表示区间概念。
+                        `;
+                        break;
+                    
+                    case 'sigmoid':
+                        info = `
+                            <strong>S形隶属函数：</strong><br>
+                            数学表达式：μ(x) = 1/(1+exp(-a(x-c)))<br>
+                            参数说明：
+                            <ul>
+                                <li>a: 斜率，控制函数的陡峭程度</li>
+                                <li>c: 中心点，隶属度为0.5的点</li>
+                            </ul>
+                            特点：单调递增，适合表示"越来越多"的概念。
+                        `;
+                        break;
+                }
+                
+                functionInfo.innerHTML = info;
+            }
+            
+            // 比较不同形状
+            function compareShapes() {
+                charts.comparisonChart.data.datasets[0].data = calculateTriangleFunction({a: 3, b: 8, c: 13});
+                charts.comparisonChart.data.datasets[1].data = calculateGaussianFunction({mean: 8, sigma: 2});
+                charts.comparisonChart.data.datasets[2].data = calculateTrapezoidFunction({a: 2, b: 5, c: 11, d: 14});
+                charts.comparisonChart.data.datasets[3].data = calculateSigmoidFunction({a: 0.5, c: 8});
+                charts.comparisonChart.update();
+            }
+            
+            // 重置参数
+            function resetParams() {
+                currentParams = {
+                    triangle: { a: 3, b: 8, c: 13 },
+                    gaussian: { mean: 8, sigma: 2 },
+                    trapezoid: { a: 2, b: 5, c: 11, d: 14 },
+                    sigmoid: { a: 0.5, c: 8 }
+                };
+                
+                updateParamControls(shapeSelect.value);
+                updateShapeChart();
+            }
+            
+            // 绑定事件
+            shapeSelect.addEventListener('change', function() {
+                updateParamControls(this.value);
+                updateShapeChart();
+            });
+            
+            compareButton.addEventListener('click', compareShapes);
+            resetButton.addEventListener('click', resetParams);
+            
+            // 初始更新
+            updateParamControls(shapeSelect.value);
+            updateShapeChart();
+            compareShapes();
+        }
+    </script>
+</body>
+</html>
