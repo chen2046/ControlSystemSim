@@ -1,0 +1,1227 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>信号与系统 - 频域分析实验室</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 15px; background: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; margin: 10px 0 15px; font-size: 22px; font-weight: 600; }
+        .tabs { display: flex; margin-bottom: 15px; border-bottom: 2px solid #007bff; }
+        .tab { padding: 8px 20px; cursor: pointer; background: none; border: none; color: #666; font-size: 14px; font-weight: 600; margin-right: 4px; border-bottom: 2px solid transparent; }
+        .tab:hover { color: #007bff; }
+        .tab.active { color: #007bff; border-bottom-color: #007bff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 15px 0; padding: 12px; background: #f8f9fa; border-radius: 4px; border: 1px solid #e9ecef; }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        label { font-weight: 600; color: #495057; font-size: 12px; }
+        input[type="range"] { width: 100%; height: 4px; background: #ddd; border-radius: 2px; outline: none; -webkit-appearance: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #007bff; border-radius: 50%; cursor: pointer; }
+        select, input[type="text"], input[type="number"] { padding: 4px 8px; background: white; color: #333; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; }
+        button { background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-weight: 600; font-size: 13px; }
+        button:hover { background: #0056b3; }
+        button.secondary { background: #6c757d; }
+        button.secondary:hover { background: #545b62; }
+        canvas { width: 100%; height: 240px; border: 1px solid #ddd; border-radius: 4px; margin: 8px 0; background: #fafafa; }
+        .canvas-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 15px 0; }
+        .full-width { grid-column: 1 / -1; }
+        .matlab-code { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: 'Consolas', 'Monaco', monospace; white-space: pre-wrap; overflow-x: auto; font-size: 12px; line-height: 1.4; border: 1px solid #e9ecef; max-height: 300px; overflow-y: auto; color: #333; }
+        .info { margin: 8px 0; padding: 8px 12px; background: #e7f3ff; border-left: 3px solid #007bff; border-radius: 3px; color: #0056b3; font-size: 13px; }
+        h3 { color: #333; border-bottom: 1px solid #007bff; padding-bottom: 5px; margin: 20px 0 10px; font-size: 16px; font-weight: 600; }
+        .pole-zero-list { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0; }
+        .pole-zero-item { padding: 4px 8px; background: #e9ecef; border-radius: 3px; font-size: 12px; }
+        @media (max-width: 900px) {
+            .canvas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>信号与系统频域分析交互仿真</h1>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="synthesis">信号分解合成</button>
+            <button class="tab" data-tab="system">LTI系统复频域</button>
+        </div>
+
+        <!-- 信号分解合成面板 -->
+        <div id="synthesis" class="tab-content active">
+            <div class="controls">
+                <div class="control-group">
+                    <label>信号类型</label>
+                    <select id="waveType">
+                        <option value="square">方波</option>
+                        <option value="triangle">三角波</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>基频 f0 (Hz)</label>
+                    <input type="range" id="baseFreq" min="1" max="50" value="5" step="1">
+                    <span id="baseFreqVal">5</span>
+                </div>
+                <div class="control-group">
+                    <label>谐波次数 N</label>
+                    <input type="range" id="harmonics" min="1" max="50" value="10" step="1">
+                    <span id="harmonicsVal">10</span>
+                </div>
+                <div class="control-group">
+                    <label>显示谐波数</label>
+                    <input type="range" id="displayHarmonics" min="0" max="10" value="3" step="1">
+                    <span id="displayHarmonicsVal">3</span>
+                </div>
+                <div class="control-group">
+                    <label>占空比 (%)</label>
+                    <input type="range" id="dutyCycle" min="10" max="90" value="50" step="5">
+                    <span id="dutyCycleVal">50</span>
+                </div>
+                <div class="control-group">
+                    <label>幅度 A</label>
+                    <input type="range" id="waveAmp" min="0.1" max="5" value="1" step="0.1">
+                    <span id="waveAmpVal">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button id="updateSynthesis">更新</button>
+                </div>
+            </div>
+
+            <div class="info" id="synthInfo">
+                傅里叶级数合成：显示前 N 次谐波的叠加效果，浅灰色线为各次谐波
+            </div>
+
+            <div class="canvas-grid">
+                <div class="full-width">
+                    <h3>时域波形（含谐波分解）</h3>
+                    <canvas id="waveCanvas"></canvas>
+                </div>
+                <div>
+                    <h3>幅频特性</h3>
+                    <canvas id="magCanvas"></canvas>
+                </div>
+                <div>
+                    <h3>相频特性</h3>
+                    <canvas id="phaseCanvas"></canvas>
+                </div>
+            </div>
+
+            <h3>MATLAB 程序</h3>
+            <div class="matlab-code" id="synthMatlab">
+% 信号傅里叶级数合成
+f0 = 5;             % 基频 (Hz)
+N = 10;             % 谐波次数
+A = 1;              % 幅度
+duty = 0.5;         % 占空比 (0-1)
+
+T = 1/f0;
+t = 0:0.0001:3*T;
+
+% 初始化信号
+x = zeros(size(t));
+
+% 傅里叶系数及合成
+for k = 1:N
+    if strcmp('square', 'square')
+        bk = (4*A/(k*pi)) * sin(k*pi*duty);  % 方波系数 (仅奇次)
+    else % triangle
+        if mod(k,2) == 1  % 仅奇次谐波
+            bk = (8*A/(k^2*pi^2)) * sin(k*pi*duty);
+        else
+            bk = 0;
+        end
+    end
+    x = x + bk * sin(2*pi*k*f0*t);
+end
+
+% 绘图
+figure;
+subplot(3,1,1);
+plot(t, x, 'b-', 'LineWidth', 2);
+title(['合成波形: ', '方波', ' (N=', num2str(N), ')']);
+xlabel('时间 t'); ylabel('幅度');
+grid on;
+
+% 幅频特性
+k = 1:N;
+figure;
+stem(k, abs([1, 0, 0.424413, 0, 0.090946, 0, 0.040484, 0, 0.02242, 0]), 'filled');
+title('幅频特性');
+xlabel('谐波次数 k'); ylabel('|b_k|');
+grid on;
+            </div>
+        </div>
+
+        <!-- LTI系统复频域面板 -->
+        <div id="system" class="tab-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label>传递函数形式</label>
+                    <select id="tfForm">
+                        <option value="custom">自定义极点零点</option>
+                        <option value="lowpass">一阶低通</option>
+                        <option value="highpass">一阶高通</option>
+                        <option value="secondorder">二阶系统</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>增益 K</label>
+                    <input type="range" id="gainK" min="0.1" max="10" value="1" step="0.1">
+                    <span id="gainKVal">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label>极点 (实数或复数)</label>
+                    <input type="text" id="poleInput" placeholder="如: -1 或 -1+2i" value="-1">
+                </div>
+                <div class="control-group">
+                    <label>零点 (实数或复数)</label>
+                    <input type="text" id="zeroInput" placeholder="如: 0 或空">
+                </div>
+                <div class="control-group">
+                    <label>自然频率 ω_n</label>
+                    <input type="range" id="wn" min="0.5" max="10" value="2" step="0.1">
+                    <span id="wnVal">2.0</span>
+                </div>
+                <div class="control-group">
+                    <label>阻尼比 ζ</label>
+                    <input type="range" id="zeta" min="0" max="2" value="0.5" step="0.05">
+                    <span id="zetaVal">0.50</span>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button id="updateSystem">更新</button>
+                </div>
+            </div>
+
+            <div class="info" id="sysInfo">
+                传递函数 H(s) = K · Π(s - z_i) / Π(s - p_i)，极点在左半平面系统稳定
+            </div>
+
+            <div class="pole-zero-list">
+                <strong>当前极点：</strong>
+                <span id="poleList">-1</span>
+                <strong>当前零点：</strong>
+                <span id="zeroList">无</span>
+            </div>
+
+            <div class="canvas-grid">
+                <div>
+                    <h3>零极点分布图 (s平面)</h3>
+                    <canvas id="pzCanvas"></canvas>
+                </div>
+                <div>
+                    <h3>幅频特性 |H(jω)| (dB)</h3>
+                    <canvas id="bodeMagCanvas"></canvas>
+                </div>
+                <div class="full-width">
+                    <h3>相频特性 ∠H(jω) (rad)</h3>
+                    <canvas id="bodePhaseCanvas"></canvas>
+                </div>
+            </div>
+
+            <h3>MATLAB 程序</h3>
+            <div class="matlab-code" id="systemMatlab">
+% LTI系统复频域分析
+K = 1.0;              % 增益
+poles = [-1.00];       % 极点
+zeros = [];         % 零点
+
+% 构造传递函数
+num = poly(zeros);  % 零点多项式
+den = poly(poles);  % 极点多项式
+sys = tf(K * num, den);
+
+% 零极点图
+figure;
+pzmap(sys);
+title('零极点分布图');
+grid on;
+xlabel('实部'); ylabel('虚部');
+
+% Bode图
+figure;
+bode(sys);
+grid on;
+
+% 稳定性判断
+if all(real(poles) < 0)
+    disp('系统稳定');
+else
+    disp('系统不稳定');
+end
+            </div>
+        </div>
+
+        <button id="exportData" class="secondary" style="margin-top: 15px;">导出数据</button>
+        <!-- 版权信息 -->
+        <div style="text-align: center; margin-top: 25px; padding-top: 10px; border-top: 1px solid #dee2e6; color: #6c757d; font-size: 12px;">
+            2026 ChenXixiang2046. All Rights Reserved  | 设计用于教学演示
+        </div>
+    </div>
+
+    <script>
+        let exportDataAll = {};
+
+        // Tab切换 - 三重 RAF + setTimeout 确保布局完成
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.onclick = function() {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                const target = this.dataset.tab;
+                document.getElementById(target).classList.add('active');
+
+                // 多重延迟确保布局完成
+                requestAnimationFrame(function() {
+                    requestAnimationFrame(function() {
+                        requestAnimationFrame(function() {
+                            setTimeout(function() {
+                                if (target === 'synthesis') updateSynthesis();
+                                else if (target === 'system') updateSystem();
+                            }, 50);
+                        });
+                    });
+                });
+            };
+        });
+
+        // === 信号分解合成 ===
+        const waveTypes = { 'square': '方波', 'triangle': '三角波' };
+        let currentWave = 'square';
+
+        document.getElementById('waveType').onchange = function() {
+            currentWave = this.value;
+            updateSynthesis();
+        };
+
+        function computeFourierCoeffs(type, N, duty, A) {
+            const coeffs = [];
+            for (let k = 1; k <= N; k++) {
+                let bk = 0;
+                if (type === 'square') {
+                    if (k % 2 === 1) {
+                        bk = (4 * A / (k * Math.PI)) * Math.sin(k * Math.PI * duty);
+                    }
+                } else {
+                    if (k % 2 === 1) {
+                        bk = (8 * A / (k * k * Math.PI * Math.PI)) * Math.sin(k * Math.PI * duty);
+                    }
+                }
+                coeffs.push(bk);
+            }
+            return coeffs;
+        }
+
+        function updateSynthesis() {
+            // 尺寸检查
+            const waveCanvas = document.getElementById('waveCanvas');
+            const magCanvas = document.getElementById('magCanvas');
+            const phaseCanvas = document.getElementById('phaseCanvas');
+            if (!waveCanvas || !magCanvas || !phaseCanvas) return;
+            if (waveCanvas.clientWidth === 0 || magCanvas.clientWidth === 0 || phaseCanvas.clientWidth === 0) {
+                requestAnimationFrame(updateSynthesis);
+                return;
+            }
+
+            const f0 = parseFloat(document.getElementById('baseFreq').value) || 5;
+            const N = parseInt(document.getElementById('harmonics').value) || 10;
+            const displayN = Math.min(parseInt(document.getElementById('displayHarmonics').value) || 3, N);
+            const duty = (parseFloat(document.getElementById('dutyCycle').value) || 50) / 100;
+            const A = parseFloat(document.getElementById('waveAmp').value) || 1;
+
+            document.getElementById('baseFreqVal').textContent = f0;
+            document.getElementById('harmonicsVal').textContent = N;
+            document.getElementById('displayHarmonicsVal').textContent = displayN;
+            document.getElementById('dutyCycleVal').textContent = Math.round(duty * 100);
+            document.getElementById('waveAmpVal').textContent = A.toFixed(1);
+
+            const T = 1 / f0;
+            const t = [];
+            for (let ti = 0; ti <= 3*T; ti += 0.0001) {
+                t.push(ti);
+            }
+
+            const bk = computeFourierCoeffs(currentWave, N, duty, A);
+            const harmonics = [];
+            for (let k = 0; k < N; k++) {
+                const kIndex = k + 1;
+                const y = t.map(ti => bk[k] * Math.sin(2 * Math.PI * kIndex * f0 * ti));
+                harmonics.push(y);
+            }
+            const x = harmonics.reduce((acc, y) => acc.map((val, i) => val + y[i]), new Array(t.length).fill(0));
+
+            drawSynthesis('waveCanvas', t, harmonics, x, A, displayN);
+            drawMagnitude('magCanvas', bk, N);
+            const phases = bk.map(b => b >= 0 ? 0 : Math.PI);
+            drawPhase('phaseCanvas', phases, N);
+
+            updateSynthesisMatlab(currentWave, f0, N, duty, A, bk, displayN);
+        }
+
+        function drawSynthesis(canvasId, t, harmonics, x, A, displayN) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            if (w <= 0 || h <= 0) return;
+            const margin = { left: 60, right: 30, top: 20, bottom: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            const xMin = 0, xMax = 3 * (1/parseFloat(document.getElementById('baseFreq').value) || 0.2);
+            const yMin = -A*1.2, yMax = A*1.2;
+
+            drawGrid(ctx, w, h, margin, xMin, xMax, yMin, yMax);
+            drawAxis(ctx, w, h, margin, xMin, xMax, yMin, yMax);
+
+            // 绘制谐波（深灰色细线）
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 1.5;
+            ctx.globalAlpha = 0.7;
+            for (let k = 0; k < displayN; k++) {
+                ctx.beginPath();
+                let first = true;
+                for (let i = 0; i < t.length; i++) {
+                    const xPos = margin.left + ((t[i] - xMin)/(xMax - xMin)) * plotW;
+                    const yPos = h - margin.bottom - ((harmonics[k][i] - yMin)/(yMax - yMin)) * plotH;
+                    if (first) { ctx.moveTo(xPos, yPos); first = false; }
+                    else { ctx.lineTo(xPos, yPos); }
+                }
+                ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+
+            // 绘制合成波形（蓝色粗线）
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            let first = true;
+            for (let i = 0; i < t.length; i++) {
+                const xPos = margin.left + ((t[i] - xMin)/(xMax - xMin)) * plotW;
+                const yPos = h - margin.bottom - ((x[i] - yMin)/(yMax - yMin)) * plotH;
+                if (first) { ctx.moveTo(xPos, yPos); first = false; }
+                else { ctx.lineTo(xPos, yPos); }
+            }
+            ctx.stroke();
+
+            // 坐标标签
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('时间 t (s)', w/2, h - 8);
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('幅度', 0, 0);
+            ctx.restore();
+        }
+
+        function drawGrid(ctx, w, h, margin, xMin, xMax, yMin, yMax) {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.5;
+            const xStep = (xMax - xMin) / 5;
+            const yStep = (yMax - yMin) / 5;
+
+            // X轴网格（垂直）
+            for (let val = xMin; val <= xMax; val += xStep) {
+                const x = margin.left + ((val - xMin)/(xMax - xMin)) * (w - margin.left - margin.right);
+                ctx.beginPath(); ctx.moveTo(x, margin.top); ctx.lineTo(x, h - margin.bottom); ctx.stroke();
+            }
+            // Y轴网格（水平，从底部坐标）
+            for (let val = yMin; val <= yMax; val += yStep) {
+                const y = h - margin.bottom - ((val - yMin)/(yMax - yMin)) * (h - margin.top - margin.bottom);
+                ctx.beginPath(); ctx.moveTo(margin.left, y); ctx.lineTo(w - margin.right, y); ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function drawAxis(ctx, w, h, margin, xMin, xMax, yMin, yMax) {
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, margin.top);
+            ctx.lineTo(margin.left, h - margin.bottom);
+            ctx.lineTo(w - margin.right, h - margin.bottom);
+            ctx.stroke();
+
+            // X 刻度
+            ctx.fillStyle = '#666';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let i = 0; i <= 5; i++) {
+                const val = xMin + (i/5)*(xMax - xMin);
+                const x = margin.left + (i/5) * (w - margin.left - margin.right);
+                ctx.fillText(val.toFixed(2), x, h - margin.bottom + 5);
+            }
+
+            // Y 刻度（从底部坐标）
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= 5; i++) {
+                const val = yMin + (i/5)*(yMax - yMin);
+                const y = h - margin.bottom - ((val - yMin)/(yMax - yMin)) * (h - margin.top - margin.bottom);
+                ctx.fillText(val.toFixed(2), margin.left - 5, y);
+            }
+        }
+
+        function drawMagnitude(canvasId, bk, N) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            if (w <= 0 || h <= 0) return;
+            const margin = { left: 60, right: 30, top: 20, bottom: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            const xMin = 0.5, xMax = N + 0.5;
+            const maxAbs = Math.max(...bk.map(Math.abs));
+            const yMax = (maxAbs > 0) ? maxAbs * 1.1 : 1;  // 防止为0
+            const yMin = 0;
+
+            if (yMax <= yMin) return;  // 无有效数据
+
+            drawGrid(ctx, w, h, margin, xMin, xMax, yMin, yMax);
+            drawAxis(ctx, w, h, margin, xMin, xMax, yMin, yMax);
+
+            // 柱状图
+            ctx.fillStyle = '#007bff';
+            const barWidth = plotW / N * 0.8;
+            for (let k = 0; k < N; k++) {
+                const xPos = margin.left + ((k + 1) - xMin)/(xMax - xMin) * plotW - barWidth/2;
+                const barHeight = (Math.abs(bk[k]) / yMax) * plotH;
+                ctx.fillRect(xPos, h - margin.bottom - barHeight, barWidth, barHeight);
+            }
+
+            // 标签
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('谐波次数 k', w/2, h - 8);
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('|b_k|', 0, 0);
+            ctx.restore();
+        }
+
+        function drawPhase(canvasId, phases, N) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            if (w <= 0 || h <= 0) return;
+            const margin = { left: 60, right: 30, top: 20, bottom: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            const xMin = 0.5, xMax = N + 0.5;
+            const yMin = -Math.PI, yMax = Math.PI;
+
+            drawGrid(ctx, w, h, margin, xMin, xMax, yMin, yMax);
+            drawAxis(ctx, w, h, margin, xMin, xMax, yMin, yMax);
+
+            // 零线
+            ctx.strokeStyle = '#999';
+            ctx.setLineDash([3,3]);
+            const zeroY = h - margin.bottom - ((0 - yMin)/(yMax - yMin)) * plotH;
+            ctx.beginPath(); ctx.moveTo(margin.left, zeroY); ctx.lineTo(w - margin.right, zeroY); ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 相位柱状图
+            ctx.fillStyle = '#007bff';
+            const barWidth = plotW / N * 0.8;
+            for (let k = 0; k < N; k++) {
+                const xPos = margin.left + ((k + 1) - xMin)/(xMax - xMin) * plotW - barWidth/2;
+                const phase = phases[k] || 0;
+                const yPos = h - margin.bottom - ((phase - yMin)/(yMax - yMin)) * plotH;
+                const barHeight = Math.abs(phase - yMin) / (yMax - yMin) * plotH;
+                if (phase >= 0) {
+                    ctx.fillRect(xPos, yPos, barWidth, barHeight);
+                } else {
+                    ctx.fillRect(xPos, h - margin.bottom, barWidth, barHeight);
+                }
+            }
+
+            // 标签
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('谐波次数 k', w/2, h - 8);
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('相位 ∠b_k', 0, 0);
+            ctx.restore();
+        }
+
+        function updateSynthesisMatlab(type, f0, N, duty, A, bk, displayN) {
+            // 构建 MATLAB 数组字符串
+            var bkList = '';
+            for (var i = 0; i < bk.length; i++) {
+                bkList += bk[i].toFixed(4);
+                if (i < bk.length - 1) bkList += ', ';
+            }
+
+            const code = '% 信号傅里叶级数合成\n' +
+                'f0 = ' + f0 + ';             % 基频 (Hz)\n' +
+                'N = ' + N + ';             % 谐波次数\n' +
+                'A = ' + A + ';              % 幅度\n' +
+                'duty = ' + duty.toFixed(2) + ';         % 占空比 (0-1)\n\n' +
+                'T = 1/f0;\n' +
+                't = 0:0.0001:3*T;\n\n' +
+                '% 初始化信号\n' +
+                'x = zeros(size(t));\n\n' +
+                '% 傅里叶系数及合成\n' +
+                'for k = 1:N\n' +
+                '    if strcmp(\'' + type + '\', \'square\')\n' +
+                '        bk = (4*A/(k*pi)) * sin(k*pi*duty);  % 方波系数\n' +
+                '    else % triangle\n' +
+                '        if mod(k,2) == 1  % 仅奇次谐波\n' +
+                '            bk = (8*A/(k^2*pi^2)) * sin(k*pi*duty);\n' +
+                '        else\n' +
+                '            bk = 0;\n' +
+                '        end\n' +
+                '    end\n' +
+                '    x = x + bk * sin(2*pi*k*f0*t);\n' +
+                'end\n\n' +
+                '% 绘图\n' +
+                'figure;\n' +
+                'subplot(3,1,1);\n' +
+                'plot(t, x, \'b-\', \'LineWidth\', 2);\n' +
+                'title([\'合成波形: \', \'' + waveTypes[type] + ' (N=' + N + ')\']);\n' +
+                'xlabel(\'时间 t\'); ylabel(\'幅度\');\n' +
+                'grid on;\n\n' +
+                '% 幅频特性\n' +
+                'k = 1:N;\n' +
+                'figure;\n' +
+                'stem(k, abs([' + bkList + ']), \'filled\');\n' +
+                'title(\'幅频特性\');\n' +
+                'xlabel(\'谐波次数 k\'); ylabel(\'|b_k|\');\n' +
+                'grid on;';
+
+            document.getElementById('synthMatlab').textContent = code;
+            exportDataAll.synthesis = { f0, N, duty, A, type, bk, displayN };
+        }
+
+        // === LTI系统复频域分析 ===
+        let currentSystem = { poles: [-1], zeros: [], K: 1 };
+
+        const tfForms = {
+            lowpass: { poles: [-1], zeros: [] },
+            highpass: { poles: [-1], zeros: [0] },
+            secondorder: { poles: [], zeros: [] }
+        };
+
+        document.getElementById('tfForm').onchange = function() {
+            const form = this.value;
+            if (form !== 'custom') {
+                const K = parseFloat(document.getElementById('gainK').value) || 1;
+                const wn = parseFloat(document.getElementById('wn').value) || 2;
+                const zeta = parseFloat(document.getElementById('zeta').value) || 0.5;
+                let poles = [], zeros = [];
+                if (form === 'lowpass') {
+                    poles = [-1]; zeros = [];
+                } else if (form === 'highpass') {
+                    poles = [-1]; zeros = [0];
+                } else if (form === 'secondorder') {
+                    if (zeta < 1) {
+                        const alpha = zeta * wn;
+                        const beta = wn * Math.sqrt(1 - zeta*zeta);
+                        poles = [
+                            { re: -alpha, im: beta },
+                            { re: -alpha, im: -beta }
+                        ];
+                    } else if (Math.abs(zeta - 1) < 1e-6) {
+                        const p = -wn;
+                        poles = [p, p];
+                    } else {
+                        const sqrtTerm = wn * Math.sqrt(zeta*zeta - 1);
+                        const p1 = -zeta * wn + sqrtTerm;
+                        const p2 = -zeta * wn - sqrtTerm;
+                        poles = [p1, p2];
+                    }
+                    zeros = [];
+                }
+                currentSystem = { poles, zeros, K };
+                document.getElementById('poleInput').value = formatComplexList(poles);
+                document.getElementById('zeroInput').value = formatComplexList(zeros);
+                document.getElementById('gainK').value = 1;
+                requestAnimationFrame(updateSystem);
+            }
+        };
+
+        function formatComplex(c) {
+            if (typeof c === 'object' && c !== null) {
+                return c.im === 0 ? c.re.toFixed(2) : c.re.toFixed(2) + (c.im >= 0 ? '+' : '') + c.im.toFixed(2) + 'i';
+            }
+            return (c || 0).toFixed(2);
+        }
+
+        function formatComplexList(list) {
+            return list.map(c => {
+                if (typeof c === 'object' && c !== null) {
+                    return c.im === 0 ? c.re.toFixed(2) : c.re.toFixed(2) + (c.im >= 0 ? '+' : '') + c.im.toFixed(2) + 'i';
+                }
+                return (c || 0).toFixed(2);
+            }).join(', ');
+        }
+
+        function parseComplexList(str) {
+            if (!str || !str.trim()) return [];
+            const parts = str.split(',').map(s => s.trim()).filter(s => s);
+            const result = [];
+            for (let part of parts) {
+                if (!part.includes('i')) {
+                    const num = parseFloat(part);
+                    if (!isNaN(num)) {
+                        result.push(num);
+                        continue;
+                    }
+                }
+                let re = 0, im = 0;
+                if (part === 'i' || part === '+i') {
+                    re = 0; im = 1;
+                } else if (part === '-i') {
+                    re = 0; im = -1;
+                } else if (part.includes('i')) {
+                    const withoutI = part.replace('i', '');
+                    if (withoutI.includes('+') || withoutI.includes('-')) {
+                        const lastOp = Math.max(withoutI.lastIndexOf('+'), withoutI.lastIndexOf('-'));
+                        if (lastOp > 0) {
+                            const reStr = withoutI.slice(0, lastOp);
+                            const imStr = withoutI.slice(lastOp);
+                            re = parseFloat(reStr) || 0;
+                            im = parseFloat(imStr) || 0;
+                        } else {
+                            if (withoutI === '-' || withoutI === '+') {
+                                im = withoutI === '-' ? -1 : 1;
+                                re = 0;
+                            } else {
+                                im = parseFloat(withoutI) || 0;
+                                re = 0;
+                            }
+                        }
+                    } else {
+                        im = parseFloat(withoutI) || 0;
+                        re = 0;
+                    }
+                } else {
+                    const num = parseFloat(part);
+                    if (!isNaN(num)) {
+                        result.push(num);
+                        continue;
+                    }
+                }
+                result.push({ re, im });
+            }
+            return result;
+        }
+
+        function getComplexParts(c) {
+            if (typeof c === 'object' && c !== null) {
+                return { re: c.re || 0, im: c.im || 0 };
+            }
+            return { re: c || 0, im: 0 };
+        }
+
+        function computeFrequencyResponse(poles, zeros, K) {
+            const omega = [];
+            for (let i = -1; i <= 2; i++) {
+                for (let j = 0; j < 10; j++) {
+                    const w = Math.pow(10, i + j/10);
+                    if (w >= 0.1 && w <= 100) omega.push(w);
+                }
+            }
+            omega = [...new Set(omega)].sort((a,b)=>a-b);
+
+            const H = omega.map(w => {
+                let numMag = K, denMag = 1;
+                let numPhase = 0, denPhase = 0;
+
+                zeros.forEach(z => {
+                    const { re, im } = getComplexParts(z);
+                    const diffRe = -re;
+                    const diffIm = w - im;
+                    let mag = Math.sqrt(diffRe*diffRe + diffIm*diffIm);
+                    if (mag < 1e-10) mag = 1e-10;  // 防止分母过小
+                    const phase = Math.atan2(diffIm, diffRe);
+                    numMag *= mag;
+                    numPhase += phase;
+                });
+
+                poles.forEach(p => {
+                    const { re, im } = getComplexParts(p);
+                    const diffRe = -re;
+                    const diffIm = w - im;
+                    let mag = Math.sqrt(diffRe*diffRe + diffIm*diffIm);
+                    if (mag < 1e-10) mag = 1e-10;  // 防止分母过小
+                    const phase = Math.atan2(diffIm, diffRe);
+                    denMag *= mag;
+                    denPhase += phase;
+                });
+
+                // 确保分母不为0或无穷
+                if (denMag < 1e-10) denMag = 1e-10;
+                if (denMag > 1e10) denMag = 1e10;
+                if (numMag > 1e10) numMag = 1e10;
+
+                const ratio = numMag / denMag;
+                let mag = 20 * Math.log10(ratio > 0 ? ratio : 1e-10);
+                let phase = numPhase - denPhase;
+                while (phase > Math.PI) phase -= 2*Math.PI;
+                while (phase < -Math.PI) phase += 2*Math.PI;
+                return { mag, phase };
+            });
+
+            return { omega, H };
+        }
+
+        function updateSystem() {
+            console.log('updateSystem called');
+            // 确保 canvas 尺寸正确
+            const pzCanvas = document.getElementById('pzCanvas');
+            const magCanvas = document.getElementById('bodeMagCanvas');
+            const phaseCanvas = document.getElementById('bodePhaseCanvas');
+            if (!pzCanvas || !magCanvas || !phaseCanvas) {
+                console.error(' canvases not found', { pzCanvas, magCanvas, phaseCanvas });
+                return;
+            }
+            if (pzCanvas.clientWidth === 0 || magCanvas.clientWidth === 0 || phaseCanvas.clientWidth === 0) {
+                console.log('Canvas 尺寸为0，延迟重绘');
+                requestAnimationFrame(updateSystem);
+                return;
+            }
+            console.log('Canvas 尺寸:', {
+                pz: pzCanvas.clientWidth,
+                mag: magCanvas.clientWidth,
+                phase: phaseCanvas.clientWidth
+            });
+
+            const form = document.getElementById('tfForm').value;
+            const K = parseFloat(document.getElementById('gainK').value) || 1;
+            const polesStr = document.getElementById('poleInput').value;
+            const zerosStr = document.getElementById('zeroInput').value;
+            const wn = parseFloat(document.getElementById('wn').value) || 2;
+            const zeta = parseFloat(document.getElementById('zeta').value) || 0.5;
+
+            document.getElementById('gainKVal').textContent = K.toFixed(1);
+            document.getElementById('wnVal').textContent = wn.toFixed(1);
+            document.getElementById('zetaVal').textContent = zeta.toFixed(2);
+
+            let poles = [], zeros = [];
+            if (form === 'lowpass') {
+                poles = [-1]; zeros = [];
+            } else if (form === 'highpass') {
+                poles = [-1]; zeros = [0];
+            } else if (form === 'secondorder') {
+                if (zeta < 1) {
+                    const alpha = zeta * wn;
+                    const beta = wn * Math.sqrt(1 - zeta*zeta);
+                    poles = [
+                        { re: -alpha, im: beta },
+                        { re: -alpha, im: -beta }
+                    ];
+                } else if (Math.abs(zeta - 1) < 1e-6) {
+                    const p = -wn;
+                    poles = [p, p];
+                } else {
+                    const sqrtTerm = wn * Math.sqrt(zeta*zeta - 1);
+                    const p1 = -zeta * wn + sqrtTerm;
+                    const p2 = -zeta * wn - sqrtTerm;
+                    poles = [p1, p2];
+                }
+                zeros = [];
+            } else {
+                poles = parseComplexList(polesStr);
+                zeros = parseComplexList(zerosStr);
+            }
+
+            currentSystem = { poles, zeros, K };
+            document.getElementById('poleList').textContent = formatComplexList(poles);
+            document.getElementById('zeroList').textContent = zeros.length ? formatComplexList(zeros) : '无';
+
+            const { omega, H } = computeFrequencyResponse(poles, zeros, K);
+            console.log('频率响应计算完成:', { omegaLen: omega.length, HLen: H.length, firstH: H[0] });
+
+            drawPZMap('pzCanvas', poles, zeros);
+            try {
+                drawBodeMag('bodeMagCanvas', omega, H);
+            } catch (e) {
+                console.error('幅频图绘制失败:', e);
+            }
+            try {
+                drawBodePhase('bodePhaseCanvas', omega, H);
+            } catch (e) {
+                console.error('相频图绘制失败:', e);
+            }
+
+            updateSystemMatlab(K, poles, zeros, wn, zeta, form);
+        }
+
+        function drawPZMap(canvasId, poles, zeros) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            if (w <= 0 || h <= 0) return;
+            const margin = { left: 60, right: 30, top: 20, bottom: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            const xMin = -2, xMax = 2;
+            const yMin = -2, yMax = 2;
+            if (xMax <= xMin || yMax <= yMin) return;
+
+            // 网格（手动）
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.5;
+            const xStep = 1, yStep = 1;
+            for (let val = xMin; val <= xMax; val += xStep) {
+                const x = margin.left + ((val - xMin)/(xMax - xMin)) * plotW;
+                ctx.beginPath(); ctx.moveTo(x, margin.top); ctx.lineTo(x, h - margin.bottom); ctx.stroke();
+            }
+            for (let val = yMin; val <= yMax; val += yStep) {
+                const y = h - margin.bottom - ((val - yMin)/(yMax - yMin)) * plotH;
+                ctx.beginPath(); ctx.moveTo(margin.left, y); ctx.lineTo(w - margin.right, y); ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+
+            // 实轴和虚轴（虚线）
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 1;
+            ctx.setLineDash([3,3]);
+            const realY = h - margin.bottom - ((0 - yMin)/(yMax - yMin)) * plotH;
+            ctx.beginPath(); ctx.moveTo(margin.left, realY); ctx.lineTo(w - margin.right, realY); ctx.stroke();
+            const imagX = margin.left + ((0 - xMin)/(xMax - xMin)) * plotW;
+            ctx.beginPath(); ctx.moveTo(imagX, margin.top); ctx.lineTo(imagX, h - margin.bottom); ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 绘制函数
+            function plotPoint(x, y, color, filled, cross) {
+                const cx = margin.left + ((x - xMin)/(xMax - xMin)) * plotW;
+                const cy = h - margin.bottom - ((y - yMin)/(yMax - yMin)) * plotH;
+                ctx.beginPath();
+                if (filled) {
+                    ctx.arc(cx, cy, 6, 0, 2*Math.PI);
+                    ctx.fillStyle = color;
+                    ctx.fill();
+                } else if (cross) {
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.moveTo(cx-5, cy-5); ctx.lineTo(cx+5, cy+5);
+                    ctx.moveTo(cx+5, cy-5); ctx.lineTo(cx-5, cy+5);
+                    ctx.stroke();
+                } else {
+                    ctx.arc(cx, cy, 8, 0, 2*Math.PI);
+                    ctx.strokeStyle = color;
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                }
+            }
+
+            zeros.forEach(z => {
+                const { re, im } = getComplexParts(z);
+                plotPoint(re, im, '#dc3545', false);
+            });
+
+            poles.forEach(p => {
+                const { re, im } = getComplexParts(p);
+                plotPoint(re, im, '#dc3545', false, true);
+            });
+
+            // 标签
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('实轴 Re', w - 20, h - 20);
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('虚轴 Im', 0, 0);
+            ctx.restore();
+        }
+
+        function drawBodeMag(canvasId, omega, H) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            if (w <= 0 || h <= 0) return;
+            const margin = { left: 60, right: 30, top: 20, bottom: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            const xMin = 0.1, xMax = 100;
+            const mags = H.map(h => h.mag).filter(m => isFinite(m));
+            if (mags.length === 0) return;  // 无有效数据
+            const yMin = Math.min(...mags) - 10;
+            const yMax = Math.max(...mags) + 10;
+            if (yMax <= yMin) return;  // 范围无效
+
+            drawGridLogX(ctx, w, h, margin, xMin, xMax, yMin, yMax);
+
+            // 幅频曲线
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            let first = true;
+            for (let i = 0; i < omega.length; i++) {
+                const x = margin.left + ((Math.log10(omega[i]) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin))) * plotW;
+                const yPos = h - margin.bottom - ((H[i].mag - yMin)/(yMax - yMin)) * plotH;
+                if (first) { ctx.moveTo(x, yPos); first = false; }
+                else { ctx.lineTo(x, yPos); }
+            }
+            ctx.stroke();
+
+            // 标签
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.save();
+            ctx.translate(w/2, h - 15);
+            ctx.fillText('频率 ω (rad/s)', 0, 0);
+            ctx.restore();
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('幅值 |H(jω)| (dB)', 0, 0);
+            ctx.restore();
+        }
+
+        function drawBodePhase(canvasId, omega, H) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            if (w <= 0 || h <= 0) return;
+            const margin = { left: 60, right: 30, top: 20, bottom: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            const xMin = 0.1, xMax = 100;
+            const yMin = -Math.PI, yMax = Math.PI;
+            if (yMax <= yMin) return;
+
+            drawGridLogX(ctx, w, h, margin, xMin, xMax, yMin, yMax);
+
+            // 零线
+            ctx.strokeStyle = '#999';
+            ctx.setLineDash([3,3]);
+            const zeroY = h - margin.bottom - ((0 - yMin)/(yMax - yMin)) * plotH;
+            ctx.beginPath(); ctx.moveTo(margin.left, zeroY); ctx.lineTo(w - margin.right, zeroY); ctx.stroke();
+            ctx.setLineDash([]);
+
+            // 相频曲线
+            ctx.strokeStyle = '#28a745';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            let first = true;
+            for (let i = 0; i < omega.length; i++) {
+                const x = margin.left + ((Math.log10(omega[i]) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin))) * plotW;
+                const yPos = h - margin.bottom - ((H[i].phase - yMin)/(yMax - yMin)) * plotH;
+                if (first) { ctx.moveTo(x, yPos); first = false; }
+                else { ctx.lineTo(x, yPos); }
+            }
+            ctx.stroke();
+
+            // 标签
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.save();
+            ctx.translate(w/2, h - 15);
+            ctx.fillText('频率 ω (rad/s)', 0, 0);
+            ctx.restore();
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText('相位 ∠H(jω) (rad)', 0, 0);
+            ctx.restore();
+        }
+
+        function drawGridLogX(ctx, w, h, margin, xMin, xMax, yMin, yMax) {
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.5;
+            const logTicks = [0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 50, 100];
+            for (let val of logTicks) {
+                if (val < xMin || val > xMax) continue;
+                const x = margin.left + ((Math.log10(val) - Math.log10(xMin)) / (Math.log10(xMax) - Math.log10(xMin))) * (w - margin.left - margin.right);
+                ctx.beginPath(); ctx.moveTo(x, margin.top); ctx.lineTo(x, h - margin.bottom); ctx.stroke();
+            }
+            const yStep = (yMax - yMin) / 5;
+            for (let val = yMin; val <= yMax; val += yStep) {
+                const y = h - margin.bottom - ((val - yMin)/(yMax - yMin)) * (h - margin.top - margin.bottom);
+                ctx.beginPath(); ctx.moveTo(margin.left, y); ctx.lineTo(w - margin.right, y); ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+        }
+
+        function updateSynthesisMatlab(type, f0, N, duty, A, bk, displayN) {
+            var bkList = '';
+            for (var i = 0; i < bk.length; i++) {
+                bkList += bk[i].toFixed(4);
+                if (i < bk.length - 1) bkList += ', ';
+            }
+
+            const waveName = waveTypes[type] || '信号';
+            const code = '% 信号傅里叶级数合成\n' +
+                'f0 = ' + f0 + ';             % 基频 (Hz)\n' +
+                'N = ' + N + ';             % 谐波次数\n' +
+                'A = ' + A + ';              % 幅度\n' +
+                'duty = ' + duty.toFixed(2) + ';         % 占空比 (0-1)\n\n' +
+                'T = 1/f0;\n' +
+                't = 0:0.0001:3*T;\n\n' +
+                '% 初始化信号\n' +
+                'x = zeros(size(t));\n\n' +
+                '% 傅里叶系数及合成\n' +
+                'for k = 1:N\n' +
+                '    if strcmp(\'' + type + '\', \'square\')\n' +
+                '        bk = (4*A/(k*pi)) * sin(k*pi*duty);  % 方波系数\n' +
+                '    else % triangle\n' +
+                '        if mod(k,2) == 1  % 仅奇次谐波\n' +
+                '            bk = (8*A/(k^2*pi^2)) * sin(k*pi*duty);\n' +
+                '        else\n' +
+                '            bk = 0;\n' +
+                '        end\n' +
+                '    end\n' +
+                '    x = x + bk * sin(2*pi*k*f0*t);\n' +
+                'end\n\n' +
+                '% 绘图\n' +
+                'figure;\n' +
+                'subplot(3,1,1);\n' +
+                'plot(t, x, \'b-\', \'LineWidth\', 2);\n' +
+                'title([\'合成波形: \', \'' + waveName + ' (N=' + N + ')\']);\n' +
+                'xlabel(\'时间 t\'); ylabel(\'幅度\');\n' +
+                'grid on;\n\n' +
+                '% 幅频特性\n' +
+                'k = 1:N;\n' +
+                'figure;\n' +
+                'stem(k, abs([' + bkList + ']), \'filled\');\n' +
+                'title(\'幅频特性\');\n' +
+                'xlabel(\'谐波次数 k\'); ylabel(\'|b_k|\');\n' +
+                'grid on;';
+
+            document.getElementById('synthMatlab').textContent = code;
+            exportDataAll.synthesis = { f0, N, duty, A, type, bk, displayN };
+        }
+
+        function updateSystemMatlab(K, poles, zeros, wn, zeta, form) {
+            var polesStr = formatComplexList(poles);
+            var zerosStr = zeros.length ? formatComplexList(zeros) : '[]';
+            const code = '% LTI系统复频域分析\n' +
+                'K = ' + K.toFixed(1) + ';              % 增益\n' +
+                'poles = [' + polesStr + '];       % 极点\n' +
+                'zeros = [' + zerosStr + '];         % 零点\n\n' +
+                '% 构造传递函数\n' +
+                'num = poly(zeros);  % 零点多项式\n' +
+                'den = poly(poles);  % 极点多项式\n' +
+                'sys = tf(K * num, den);\n\n' +
+                '% 零极点图\n' +
+                'figure;\n' +
+                'pzmap(sys);\n' +
+                'title(\'零极点分布图\');\n' +
+                'grid on;\n' +
+                'xlabel(\'实部\'); ylabel(\'虚部\');\n\n' +
+                '% Bode图\n' +
+                'figure;\n' +
+                'bode(sys);\n' +
+                'grid on;\n\n' +
+                '% 稳定性判断\n' +
+                'if all(real(poles) < 0)\n' +
+                '    disp(\'系统稳定\');\n' +
+                'else\n' +
+                '    disp(\'系统不稳定\');\n' +
+                'end';
+
+            document.getElementById('systemMatlab').textContent = code;
+            exportDataAll.system = { K, poles, zeros, wn, zeta, form };
+        }
+
+        // 事件绑定
+        try {
+            document.getElementById('updateSynthesis').onclick = updateSynthesis;
+            document.getElementById('updateSystem').onclick = updateSystem;
+        } catch (e) {
+            console.error('事件绑定失败:', e);
+        }
+
+        // 滑块实时更新
+        const synthSliderIds = ['baseFreq','harmonics','displayHarmonics','dutyCycle','waveAmp'];
+        const systemSliderIds = ['gainK','wn','zeta'];
+
+        synthSliderIds.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.oninput = function() {
+                    var valSpan = id + 'Val';
+                    var span = document.getElementById(valSpan);
+                    if (span) {
+                        var val = parseFloat(this.value);
+                        if (id.includes('duty') || id.includes('harmonics') || id.includes('display')) {
+                            span.textContent = Math.round(val);
+                        } else {
+                            span.textContent = val.toFixed(1);
+                        }
+                    }
+                    updateSynthesis();
+                };
+            }
+        });
+
+        systemSliderIds.forEach(function(id) {
+            var el = document.getElementById(id);
+            if (el) {
+                el.oninput = function() {
+                    var valSpan = id + 'Val';
+                    var span = document.getElementById(valSpan);
+                    if (span) {
+                        var val = parseFloat(this.value);
+                        span.textContent = (id === 'zeta') ? val.toFixed(2) : val.toFixed(1);
+                    }
+                    updateSystem();
+                };
+            }
+        });
+
+        var poleInput = document.getElementById('poleInput');
+        var zeroInput = document.getElementById('zeroInput');
+        if (poleInput) poleInput.oninput = updateSystem;
+        if (zeroInput) zeroInput.oninput = updateSystem;
+
+        var exportBtn = document.getElementById('exportData');
+        if (exportBtn) {
+            exportBtn.onclick = function() {
+                try {
+                    var blob = new Blob([JSON.stringify(exportDataAll, null, 2)], { type: 'application/json' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = '频域分析仿真数据_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'_') + '.json';
+                    a.click();
+                    URL.revokeObjectURL(url);
+                } catch (e) {
+                    console.error('导出失败:', e);
+                }
+            };
+        }
+
+        // 初始化
+        console.log('页面初始化开始...');
+        try {
+            updateSynthesis();
+        } catch (e) {
+            console.error('初始 updateSynthesis 失败:', e);
+        }
+        // updateSystem() 将在首次切换到系统标签时调用
+    </script>
+</body>
+</html>

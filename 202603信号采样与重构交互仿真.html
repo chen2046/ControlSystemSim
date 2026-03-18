@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>信号采样与重建 - 交互式仿真</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 20px; background: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; margin-bottom: 20px; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin: 20px 0; padding: 15px; background: #f8f9fa; border-radius: 6px; }
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        label { font-weight: bold; color: #555; font-size: 14px; }
+        input[type="range"] { width: 100%; }
+        select, input[type="number"] { padding: 5px; border: 1px solid #ddd; border-radius: 4px; }
+        button { background: #007bff; color: white; border: none; padding: 10px 16px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #0056b3; }
+        button.secondary { background: #6c757d; }
+        button.secondary:hover { background: #545b62; }
+        canvas { width: 100%; height: 260px; border: 1px solid #ddd; border-radius: 4px; margin: 10px 0; background: #fafafa; }
+        .canvas-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin: 20px 0; }
+        .matlab-code { background: #f0f0f0; padding: 15px; border-radius: 4px; font-family: 'Courier New', monospace; white-space: pre-wrap; overflow-x: auto; font-size: 14px; line-height: 1.4; }
+        .info { margin: 10px 0; padding: 12px; background: #e7f3ff; border-left: 4px solid #007bff; border-radius: 4px; }
+        .export-data { display: none; margin-top: 10px; }
+        .export-data textarea { width: 100%; height: 150px; font-family: monospace; font-size: 12px; }
+        h3 { color: #444; border-bottom: 2px solid #007bff; padding-bottom: 5px; margin-top: 30px; }
+        @media (max-width: 900px) {
+            .canvas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>信号采样与重构交互仿真</h1>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>信号类型</label>
+                <select id="signalType">
+                    <option value="sine">正弦波</option>
+                    <option value="square">方波</option>
+                    <option value="triangle">三角波</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>信号频率 (Hz)</label>
+                <input type="range" id="signalFreq" min="1" max="50" value="5" step="1">
+                <span id="signalFreqVal">5</span>
+            </div>
+            <div class="control-group">
+                <label>采样频率 (Hz)</label>
+                <input type="range" id="sampleFreq" min="2" max="200" value="20" step="2">
+                <span id="sampleFreqVal">20</span>
+            </div>
+            <div class="control-group">
+                <label>重建方法</label>
+                <select id="reconMethod">
+                    <option value="sinc">理想低通 (sinc插值)</option>
+                    <option value="zero">零阶保持</option>
+                    <option value="linear">线性插值</option>
+                </select>
+            </div>
+            <div class="control-group">
+                <label>量化位数 (bit)</label>
+                <input type="range" id="quantBits" min="1" max="16" value="8" step="1">
+                <span id="quantBitsVal">8</span>
+            </div>
+            <div class="control-group">
+                <label>噪声幅度</label>
+                <input type="range" id="noiseLevel" min="0" max="0.5" value="0" step="0.01">
+                <span id="noiseLevelVal">0.00</span>
+            </div>
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="runBtn">更新仿真</button>
+            </div>
+            <div class="control-group">
+                <label>&nbsp;</label>
+                <button id="exportBtn" class="secondary">导出数据</button>
+            </div>
+        </div>
+
+        <div class="info" id="nyquistInfo">
+            请注意：奈奎斯特频率 = 2×信号频率 = <span id="nyquistFreq">10</span> Hz。采样频率应 > <span id="nyquistFreq2">10</span> Hz 以避免混叠。
+        </div>
+
+        <div class="canvas-grid">
+            <div>
+                <h3>原始信号 (连续)</h3>
+                <canvas id="origCanvas"></canvas>
+            </div>
+            <div>
+                <h3>采样与重建结果</h3>
+                <canvas id="reconCanvas"></canvas>
+            </div>
+            <div>
+                <h3>频谱分析</h3>
+                <canvas id="spectrumCanvas"></canvas>
+            </div>
+            <div>
+                <h3>误差分析</h3>
+                <canvas id="errorCanvas"></canvas>
+            </div>
+        </div>
+
+        <h3>对应 MATLAB 程序</h3>
+        <div class="matlab-code" id="matlabCode">
+% 信号采样与重建仿真
+% 参数设置
+F = 5;               % 信号频率 (Hz)
+Fs = 20;             % 采样频率 (Hz)
+T = 1/F;             % 信号周期
+t = 0:0.001:2*T;    % 细时间向量（用于绘制连续信号）
+ts = 0:1/Fs:2*T;    % 采样时间点
+
+% 原始信号（例如余弦信号）
+x = cos(2*pi*F*t);
+xs = cos(2*pi*F*ts);
+
+% 重建（理想低通滤波器）
+xr = zeros(size(t));
+for n = 1:length(ts)
+    xr = xr + xs(n) * sinc(Fs*(t - ts(n)));
+end
+
+% 绘图
+figure;
+subplot(2,1,1);
+plot(t, x, 'b-', ts, xs, 'ro');
+title('原始信号与采样点');
+legend('连续信号','采样点');
+xlabel('时间 (s)');
+
+subplot(2,1,2);
+plot(t, x, 'b-', t, xr, 'g--');
+title('重建信号');
+legend('原始','重建');
+xlabel('时间 (s)');
+        </div>
+
+        <div class="export-data" id="exportArea">
+            <button id="closeExport" class="secondary">关闭</button>
+            <h4>导出的仿真数据（CSV格式）</h4>
+            <textarea id="exportText" readonly></textarea>
+            <button id="downloadBtn" style="margin-top: 10px;">下载文件</button>
+        </div>
+        <!-- 版权信息 -->
+        <div style="text-align: center; margin-top: 25px; padding-top: 10px; border-top: 1px solid #dee2e6; color: #6c757d; font-size: 12px;">
+            2026 ChenXixiang2046. All Rights Reserved  | 设计用于教学演示
+        </div>
+    </div>
+
+    <script>
+        let currentExportData = null;
+
+        const controls = {
+            signalType: document.getElementById('signalType'),
+            signalFreq: document.getElementById('signalFreq'),
+            sampleFreq: document.getElementById('sampleFreq'),
+            reconMethod: document.getElementById('reconMethod'),
+            quantBits: document.getElementById('quantBits'),
+            noiseLevel: document.getElementById('noiseLevel')
+        };
+
+        function updateLabels() {
+            document.getElementById('signalFreqVal').textContent = controls.signalFreq.value;
+            document.getElementById('sampleFreqVal').textContent = controls.sampleFreq.value;
+            document.getElementById('quantBitsVal').textContent = controls.quantBits.value;
+            document.getElementById('noiseLevelVal').textContent = parseFloat(controls.noiseLevel.value).toFixed(2);
+
+            const F = parseFloat(controls.signalFreq.value);
+            document.getElementById('nyquistFreq').textContent = (2*F).toFixed(1);
+            document.getElementById('nyquistFreq2').textContent = (2*F).toFixed(1);
+        }
+
+        function generateSignal(t, type, F) {
+            const omega = 2*Math.PI*F;
+            switch(type) {
+                case 'sine': return Math.cos(omega*t);
+                case 'square': return Math.sign(Math.cos(omega*t));
+                case 'triangle': return (2/Math.PI) * Math.asin(Math.cos(omega*t));
+                default: return Math.cos(omega*t);
+            }
+        }
+
+        function quantize(signal, bits, quantNoise) {
+            const levels = Math.pow(2, bits);
+            const max = Math.max(...signal);
+            const min = Math.min(...signal);
+            const range = max - min || 1e-9;
+            const quantized = signal.map(x => Math.round(((x - min) / range) * (levels-1)) / (levels-1) * range + min);
+            if (quantNoise === 0) return quantized;
+            const noisy = quantized.map(q => q + (Math.random()*2-1)*quantNoise);
+            return noisy;
+        }
+
+        function sinc(x) {
+            if (x === 0) return 1;
+            return Math.sin(Math.PI * x) / (Math.PI * x);
+        }
+
+        function reconstruct(t, ts, xs, method, Fs) {
+            const xr = new Array(t.length).fill(0);
+            if (method === 'sinc') {
+                for (let n = 0; n < ts.length; n++) {
+                    for (let i = 0; i < t.length; i++) {
+                        const x = Fs * (t[i] - ts[n]);
+                        xr[i] += xs[n] * sinc(x);
+                    }
+                }
+            } else if (method === 'zero') {
+                for (let i = 0; i < t.length; i++) {
+                    const idx = Math.floor(t[i] * Fs);
+                    if (idx >= 0 && idx < xs.length) {
+                        xr[i] = xs[idx];
+                    }
+                }
+            } else if (method === 'linear') {
+                for (let i = 0; i < t.length; i++) {
+                    const idx = t[i] * Fs;
+                    const n0 = Math.floor(idx);
+                    const n1 = Math.min(n0 + 1, xs.length - 1);
+                    const frac = idx - n0;
+                    if (n0 >= 0 && n0 < xs.length) {
+                        xr[i] = xs[n0] * (1 - frac) + xs[n1] * frac;
+                    }
+                }
+            }
+            return xr;
+        }
+
+        function computeFFT(signal, dt) {
+            const N = signal.length;
+            const freqs = [];
+            const amps = [];
+            for (let k = 0; k < N/2; k++) {
+                let re = 0, im = 0;
+                for (let n = 0; n < N; n++) {
+                    const angle = -2*Math.PI*k*n/N;
+                    re += signal[n] * Math.cos(angle);
+                    im += signal[n] * Math.sin(angle);
+                }
+                re /= N;
+                im /= N;
+                freqs[k] = k/(N*dt);
+                amps[k] = 2*Math.sqrt(re*re + im*im);
+            }
+            return { freqs, amps };
+        }
+
+        function drawCanvas(canvasId, xData, yData, layers, xMax, yRange) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            const margin = 50;
+            const plotW = w - 2*margin;
+            const plotH = h - 2*margin;
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(margin, margin);
+            ctx.lineTo(margin, h-margin);
+            ctx.lineTo(w-margin, h-margin);
+            ctx.stroke();
+
+            ctx.fillStyle = '#666';
+            ctx.font = '12px sans-serif';
+            for(let i=0; i<=5; i++) {
+                const x = margin + (i/5)*plotW;
+                ctx.fillRect(x-1, h-margin-3, 2, 6);
+                ctx.fillText((i*xMax/5).toFixed(2), x-15, h-margin+15);
+            }
+
+            const yMin = yRange ? yRange[0] : Math.min(...yData);
+            const yMax = yRange ? yRange[1] : Math.max(...yData);
+            const yPad = (yMax - yMin) * 0.1 || 0.1;
+            const yL = yMin - yPad, yU = yMax + yPad;
+
+            function toScreen(x, y) {
+                const sx = margin + (x/xMax)*plotW;
+                const sy = h - margin - ((y - yL)/(yU - yL))*plotH;
+                return [sx, sy];
+            }
+
+            layers.forEach(layer => {
+                ctx.strokeStyle = layer.color;
+                ctx.lineWidth = layer.dashed ? 1.5 : 2;
+                if (layer.dashed) ctx.setLineDash([5,5]);
+                else ctx.setLineDash([]);
+
+                ctx.beginPath();
+                let first = true;
+                if (layer.style === 'points') {
+                    ctx.fillStyle = layer.color;
+                    layer.data.forEach((x, i) => {
+                        const [sx, sy] = toScreen(x, layer.values[i]);
+                        ctx.beginPath();
+                        ctx.arc(sx, sy, 4, 0, 2*Math.PI);
+                        ctx.fill();
+                    });
+                } else {
+                    layer.data.forEach((x, i) => {
+                        const [sx, sy] = toScreen(x, layer.values[i]);
+                        if (first) { ctx.moveTo(sx, sy); first = false; }
+                        else { ctx.lineTo(sx, sy); }
+                    });
+                    ctx.stroke();
+                }
+                ctx.setLineDash([]);
+            });
+        }
+
+        function drawSpectrum(canvasId, specOrig, specRecon) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+
+            const margin = 50;
+            const plotW = w - 2*margin;
+            const plotH = h - 2*margin;
+
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.moveTo(margin, margin);
+            ctx.lineTo(margin, h-margin);
+            ctx.lineTo(w-margin, h-margin);
+            ctx.stroke();
+
+            const Fs = parseFloat(controls.sampleFreq.value);
+            const freqMax = Fs / 2;
+            const ampMax = Math.max(...specOrig.amps, ...specRecon.amps);
+            const yL = 0, yU = ampMax * 1.1;
+
+            function toScreen(x, y) {
+                const sx = margin + (x/freqMax)*plotW;
+                const sy = h - margin - (y/ampMax)*plotH;
+                return [sx, sy];
+            }
+
+            ctx.strokeStyle = '#007bff';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            let first = true;
+            specOrig.freqs.forEach((f, i) => {
+                const [sx, sy] = toScreen(f, specOrig.amps[i]);
+                if(i===0) ctx.moveTo(sx, sy);
+                else ctx.lineTo(sx, sy);
+            });
+            ctx.stroke();
+
+            ctx.strokeStyle = '#28a745';
+            ctx.beginPath();
+            first = true;
+            specRecon.freqs.forEach((f, i) => {
+                const [sx, sy] = toScreen(f, specRecon.amps[i]);
+                if(first) ctx.moveTo(sx, sy);
+                else ctx.lineTo(sx, sy);
+            });
+            ctx.stroke();
+
+            ctx.strokeStyle = '#dc3545';
+            ctx.setLineDash([3,3]);
+            const [sx, sy1] = toScreen(Fs/2, 0);
+            ctx.beginPath();
+            ctx.moveTo(sx, margin);
+            ctx.lineTo(sx, h-margin);
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.fillStyle = '#666';
+            ctx.font = '12px sans-serif';
+            ctx.fillText('0', margin-15, h-margin+15);
+            ctx.fillText(freqMax.toFixed(1), w-margin-10, h-margin+15);
+            ctx.fillStyle = '#007bff';
+            ctx.fillText('原始', margin, margin-10);
+            ctx.fillStyle = '#28a745';
+            ctx.fillText('重建', margin+50, margin-10);
+        }
+
+        function updateSimulation() {
+            const type = controls.signalType.value;
+            const F = parseFloat(controls.signalFreq.value);
+            const Fs = parseFloat(controls.sampleFreq.value);
+            const method = controls.reconMethod.value;
+            const quantBits = parseInt(controls.quantBits.value);
+            const noiseLevel = parseFloat(controls.noiseLevel.value);
+
+            updateLabels();
+
+            const T = 1/F;
+            const tEnd = 2*T;
+            const dt = 0.001;
+            const t = [];
+            const x = [];
+            for (let ti = 0; ti <= tEnd; ti += dt) {
+                t.push(ti);
+                x.push(generateSignal(ti, type, F));
+            }
+
+            const ts = [];
+            const xs = [];
+            for (let ti = 0; ti <= tEnd; ti += 1/Fs) {
+                ts.push(ti);
+                xs.push(generateSignal(ti, type, F));
+            }
+
+            const xsNoisy = quantize(xs, quantBits, noiseLevel);
+            const xr = reconstruct(t, ts, xsNoisy, method, Fs);
+            const error = x.map((xi, i) => xi - xr[i]);
+
+            currentExportData = { t, x, ts, xs, xsNoisy, xr, error };
+
+            drawCanvas('origCanvas', t, x, [{ data: t, values: x, style: 'line', color: '#007bff' }], tEnd);
+            drawCanvas('reconCanvas', t, xr, [
+                { data: t, values: xr, style: 'line', color: '#28a745' },
+                { data: t, values: x, style: 'line', color: '#007bff', dashed: true },
+                { data: ts, values: xsNoisy, style: 'points', color: '#dc3545' }
+            ], tEnd);
+            drawCanvas('errorCanvas', t, error, [{ data: t, values: error, style: 'line', color: '#dc3545' }], tEnd, [-1.5,1.5]);
+
+            const spectrumOrig = computeFFT(x, dt);
+            const spectrumRecon = computeFFT(xr, dt);
+            drawSpectrum('spectrumCanvas', spectrumOrig, spectrumRecon);
+
+            updateMatlabCode(type, F, Fs, method, quantBits, noiseLevel);
+        }
+
+        function updateMatlabCode(type, F, Fs, method, quantBits, noiseLevel) {
+            const signalExpr = type === 'sine' ? `cos(2*pi*F*t)` :
+                              type === 'square' ? `sign(cos(2*pi*F*t))` :
+                              `(2/pi)*asin(cos(2*pi*F*t))`;
+
+            const code = `% 信号采样与重建仿真
+% 参数设置
+F = ${F};               % 信号频率 (Hz)
+Fs = ${Fs};             % 采样频率 (Hz)
+T = 1/F;                % 信号周期
+t = 0:0.001:2*T;       % 细时间向量
+ts = 0:1/Fs:2*T;       % 采样时间点
+
+% 原始信号 (${type})
+x = ${signalExpr};
+
+% 采样+量化
+xs = ${signalExpr} evaluated at ts;
+levels = 2^quantBits;
+range = max(xs)-min(xs);
+xs_quant = round(((xs - min(xs))/range)*(levels-1))/(levels-1)*range + min(xs);
+if noiseLevel > 0
+    xs_noisy = xs_quant + noiseLevel*(2*rand(size(xs))-1);
+else
+    xs_noisy = xs_quant;
+end
+
+% 重建 (${method === 'sinc' ? '理想低通滤波器' : method === 'zero' ? '零阶保持' : '线性插值'})
+xr = zeros(size(t));
+`;
+            if (method === 'sinc') {
+                code += `for n = 1:length(ts)
+    xr = xr + xs_noisy(n) * sinc(Fs*(t - ts(n)));
+end`;
+            } else if (method === 'zero') {
+                code += `for i = 1:length(t)
+    idx = floor(t(i)*Fs) + 1;
+    xr(i) = xs_noisy(min(idx, length(ts)));
+end`;
+            } else if (method === 'linear') {
+                code += `for i = 1:length(t)
+    idx = t(i)*Fs + 1;
+    n0 = floor(idx);
+    n1 = min(n0+1, length(ts));
+    frac = idx - n0;
+    if n0 >= 1 && n0 <= length(ts)
+        xr(i) = xs_noisy(n0)*(1-frac) + xs_noisy(n1)*frac;
+    end
+end`;
+            }
+
+            code += `
+
+% 频谱分析
+N = length(t);
+X = fft(x)/N;
+XR = fft(xr)/N;
+f = (0:N-1)*(1/(N*0.001));
+
+% 绘图
+figure;
+subplot(2,2,1);
+plot(t, x, 'b-', ts, xs_noisy, 'ro');
+title('采样信号');
+legend('连续','采样点');
+xlabel('时间 (s)');
+
+subplot(2,2,2);
+plot(t, xr, 'g--', t, x, 'b:');
+title('重建信号');
+legend('重建','原始');
+xlabel('时间 (s)');
+
+subplot(2,2,3);
+stem(f(1:N/2), abs(X(1:N/2))*2, 'b');
+hold on;
+stem(f(1:N/2), abs(XR(1:N/2))*2, 'g');
+title('频谱（幅度）');
+xlabel('频率 (Hz)');
+legend('原始','重建');
+
+subplot(2,2,4);
+plot(t, x - xr, 'r');
+title('误差');
+xlabel('时间 (s)');
+`;
+
+            document.getElementById('matlabCode').textContent = code;
+        }
+
+        document.getElementById('exportBtn').onclick = function() {
+            if (!currentExportData) return;
+            const { t, x, xsNoisy, xr, error } = currentExportData;
+            let csv = 'Time(s),Original,SampledNoisy,Reconstructed,Error\n';
+            for (let i = 0; i < t.length; i++) {
+                const sIdx = Math.floor(t[i] * parseFloat(controls.sampleFreq.value));
+                const sn = (sIdx >= 0 && sIdx < xsNoisy.length) ? xsNoisy[sIdx] : '';
+                csv += [t[i].toFixed(6), x[i].toFixed(6), sn !== '' ? sn.toFixed(6) : '', xr[i].toFixed(6), error[i].toFixed(6)].join(',') + '\n';
+            }
+            document.getElementById('exportText').value = csv;
+            document.getElementById('exportArea').style.display = 'block';
+        };
+
+        document.getElementById('closeExport').onclick = function() {
+            document.getElementById('exportArea').style.display = 'none';
+        };
+
+        document.getElementById('downloadBtn').onclick = function() {
+            const blob = new Blob([document.getElementById('exportText').value], { type: 'text/csv' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'signal_simulation.csv';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        Object.values(controls).forEach(ctrl => {
+            ctrl.oninput = ctrl.onchange = updateSimulation;
+        });
+        document.getElementById('runBtn').onclick = updateSimulation;
+
+        updateSimulation();
+    </script>
+</body>
+</html>

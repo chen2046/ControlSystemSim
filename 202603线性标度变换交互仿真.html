@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计算机控制技术：标度变换在线实验室</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .gauge-container { width: 200px; height: 100px; position: relative; overflow: hidden; }
+        .gauge-body { width: 200px; height: 200px; border-radius: 50%; background: #e5e7eb; position: absolute; top: 0; left: 0; }
+        .gauge-fill { width: 200px; height: 200px; border-radius: 50%; background: #059669; position: absolute; top: 0; left: 0; transform-origin: center; transition: transform 0.3s ease-out; }
+        .gauge-cover { width: 160px; height: 160px; border-radius: 50%; background: white; position: absolute; top: 20px; left: 20px; display: flex; align-items: center; justify-content: center; padding-bottom: 40px; }
+        input[type=range] { cursor: pointer; }
+        .hex-font { font-family: 'Courier New', Courier, monospace; }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen p-4 font-sans text-slate-800">
+
+    <div class="max-w-5xl mx-auto bg-white shadow-2xl rounded-2xl overflow-hidden border border-slate-200">
+        <!-- 头部 -->
+        <header class="bg-slate-800 text-white p-5 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">线性标度变换交互仿真</h1>
+                <p class="text-xs text-slate-400 mt-1 uppercase tracking-widest">计算机控制技术-标度变换</p>
+            </div>
+            <div class="bg-slate-700 px-3 py-1 rounded border border-slate-600">
+                <span class="text-xs text-slate-300">模式：工业仿真</span>
+            </div>
+        </header>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-0">
+            
+            <!-- 左侧：参数配置 -->
+            <div class="p-6 border-r border-slate-100 space-y-8">
+                <section>
+                    <h2 class="font-bold text-slate-700 mb-4 flex items-center">
+                        <span class="w-6 h-6 bg-slate-800 text-white text-xs flex items-center justify-center rounded-full mr-2">1</span>
+                        硬件参数设置
+                    </h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">ADC 分辨率 (Bits)</label>
+                            <select id="bits" class="w-full border-2 border-slate-200 rounded-lg p-2 text-sm focus:border-emerald-500 outline-none transition-all cursor-pointer">
+                                <option value="8">8-bit (0x00 - 0xFF)</option>
+                                <option value="10" selected>10-bit (0x000 - 0x3FF)</option>
+                                <option value="12">12-bit (0x000 - 0xFFF)</option>
+                                <option value="16">16-bit (0x0000 - 0xFFFF)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">参考电压量程 (V)</label>
+                            <div class="flex items-center gap-2">
+                                <input id="vMin" type="number" value="0" class="w-full border-2 border-slate-200 rounded-lg p-2 text-sm" placeholder="Min">
+                                <span class="text-slate-400">至</span>
+                                <input id="vMax" type="number" value="5" class="w-full border-2 border-slate-200 rounded-lg p-2 text-sm" placeholder="Max">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <section>
+                    <h2 class="font-bold text-slate-700 mb-4 flex items-center">
+                        <span class="w-6 h-6 bg-slate-800 text-white text-xs flex items-center justify-center rounded-full mr-2">2</span>
+                        工程量配置 (Scale)
+                    </h2>
+                    <div class="space-y-4 text-sm">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">下限 L₀</label>
+                                <input id="lZero" type="number" value="0" class="w-full border-2 border-slate-200 rounded-lg p-2">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-500 mb-1">上限 Lₘ</label>
+                                <input id="lMax" type="number" value="100" class="w-full border-2 border-slate-200 rounded-lg p-2">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-500 mb-1">显示单位</label>
+                            <input id="unit" type="text" value="MPa" class="w-full border-2 border-slate-200 rounded-lg p-2 font-bold text-emerald-600">
+                        </div>
+                    </div>
+                </section>
+            </div>
+
+            <!-- 中间：实时监控 -->
+            <div class="p-6 bg-slate-50 space-y-8 flex flex-col items-center border-r border-slate-100">
+                <h2 class="font-bold text-slate-700 w-full text-center">3. 现场物理信号仿真</h2>
+                
+                <!-- 模拟滑块 -->
+                <div class="w-full space-y-4">
+                    <input id="vInput" type="range" step="0.001" class="w-full h-2 bg-slate-200 rounded-lg appearance-none accent-emerald-600">
+                    <div class="flex justify-between items-center bg-white p-3 rounded-lg border border-slate-200 shadow-sm">
+                        <span class="text-xs font-bold text-slate-400 uppercase">当前模拟输入:</span>
+                        <span id="vInputLabel" class="text-xl font-mono font-bold text-slate-700">2.500 V</span>
+                    </div>
+                </div>
+
+                <!-- 仪表盘 -->
+                <div class="gauge-container my-4">
+                    <div class="gauge-body"></div>
+                    <div id="gaugeFill" class="gauge-fill"></div>
+                    <div class="gauge-cover">
+                        <div class="text-center">
+                            <span id="outputVal" class="text-4xl font-bold text-slate-800 block">0.0</span>
+                            <span id="unitDisp" class="text-sm font-medium text-slate-400 uppercase tracking-widest">MPa</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 16进制显示区 -->
+                <div class="w-full bg-emerald-900 rounded-xl p-5 shadow-inner border-b-4 border-emerald-950">
+                    <div class="flex justify-between items-center mb-2">
+                        <span class="text-[10px] text-emerald-400 font-bold uppercase tracking-widest">ADC Register (Hex)</span>
+                        <span class="text-[10px] text-emerald-500 font-mono">STATUS: OK</span>
+                    </div>
+                    <div class="flex items-baseline justify-center gap-2">
+                        <span id="digitalValHex" class="text-5xl font-mono font-bold text-white drop-shadow-md">0x000</span>
+                        <span id="digitalValDec" class="text-sm font-mono text-emerald-400">(0)</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右侧：数学原理 -->
+            <div class="p-6 space-y-6">
+                <h2 class="font-bold text-slate-700 mb-4">4. 工业计算逻辑</h2>
+                
+                <div class="bg-slate-900 rounded-xl p-5 text-xs leading-relaxed shadow-lg">
+                    <div class="flex items-center gap-2 mb-4">
+                        <div class="w-2 h-2 rounded-full bg-red-500"></div>
+                        <div class="w-2 h-2 rounded-full bg-yellow-500"></div>
+                        <div class="w-2 h-2 rounded-full bg-green-500"></div>
+                        <span class="ml-2 text-slate-500 font-mono italic">Calculator Mode</span>
+                    </div>
+                    
+                    <div class="space-y-4 font-mono">
+                        <div class="text-slate-400">
+                            <p class="text-emerald-400 font-bold mb-1">// 第一步：计算数字采样值 (N)</p>
+                            <p id="step1">N = (U - U_min) / (U_max - U_min) * N_max</p>
+                        </div>
+
+                        <div class="text-slate-400 border-t border-slate-800 pt-4">
+                            <p class="text-emerald-400 font-bold mb-1">// 第二步：执行标度变换 (Y)</p>
+                            <p id="step2">Y = L₀ + (Lₘ - L₀) * N / N_max</p>
+                        </div>
+
+                        <div class="bg-slate-800 p-3 rounded border-l-4 border-emerald-500">
+                            <p class="text-slate-500 mb-1 uppercase text-[10px]">Real-time Calculation</p>
+                            <p id="step3" class="text-white break-all"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-amber-50 border-l-4 border-amber-400 p-4 text-sm text-amber-900 shadow-sm">
+                    <strong class="block mb-1">📚 老师敲黑板：</strong>
+                    <p class="text-xs">在计算机底层，ADC 数值是以二进制存储的。使用 <strong>16 进制</strong> 表示（如 0x3FF）比十进制更符合硬件直觉，因为它能一眼看出该数值占用了多少位 (Bits)。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 底部版权信息（新增） -->
+        <div class="text-center py-4 border-t border-slate-200 text-sm text-slate-500">
+            © 2026 ChenXixiang2046. All Rights Reserved  | 设计用于教学演示
+        </div>
+    </div>
+
+    <script>
+        const inputs = ['bits', 'vMin', 'vMax', 'lZero', 'lMax', 'vInput', 'unit'];
+        const elements = {};
+        inputs.forEach(id => elements[id] = document.getElementById(id));
+        
+        const display = {
+            vInputLabel: document.getElementById('vInputLabel'),
+            digitalValHex: document.getElementById('digitalValHex'),
+            digitalValDec: document.getElementById('digitalValDec'),
+            outputVal: document.getElementById('outputVal'),
+            unitDisp: document.getElementById('unitDisp'),
+            gaugeFill: document.getElementById('gaugeFill'),
+            step1: document.getElementById('step1'),
+            step2: document.getElementById('step2'),
+            step3: document.getElementById('step3')
+        };
+
+        function update() {
+            const vMin = parseFloat(elements.vMin.value);
+            const vMax = parseFloat(elements.vMax.value);
+            const bits = parseInt(elements.bits.value);
+            const lZero = parseFloat(elements.lZero.value);
+            const lMax = parseFloat(elements.lMax.value);
+            const unit = elements.unit.value;
+            
+            // 设置滑动条范围
+            elements.vInput.min = vMin;
+            elements.vInput.max = vMax;
+            const vIn = parseFloat(elements.vInput.value);
+
+            // 1. ADC 数字化
+            const nMax = Math.pow(2, bits) - 1;
+            const n = Math.round(((vIn - vMin) / (vMax - vMin)) * nMax);
+
+            // 转换 16 进制，并根据位长补 0
+            // 8位补2位，10/12位补3位，16位补4位
+            const hexPadding = bits <= 8 ? 2 : (bits <= 12 ? 3 : 4);
+            const nHex = "0x" + n.toString(16).toUpperCase().padStart(hexPadding, '0');
+
+            // 2. 标度变换 (Y = L0 + (Lm-L0)*N/Nmax)
+            const y = lZero + (lMax - lZero) * (n / nMax);
+
+            // 更新仪表盘显示
+            display.vInputLabel.innerText = `${vIn.toFixed(3)} V`;
+            display.digitalValHex.innerText = nHex;
+            display.digitalValDec.innerText = `(${n})`;
+            display.outputVal.innerText = y.toFixed(2);
+            display.unitDisp.innerText = unit;
+
+            // 仪表盘旋转
+            const ratio = (y - lZero) / (lMax - lZero);
+            const rotate = 0.5 + (ratio * 0.5); // 0.5turn 是水平左, 1.0turn 是水平右
+            display.gaugeFill.style.transform = `rotate(${rotate}turn)`;
+
+            // 更新公式逻辑显示
+            display.step1.innerHTML = `N = (${vIn.toFixed(3)} - ${vMin}) / (${vMax - vMin}) * ${nMax} ≈ <span class="text-white">${n}</span> (${nHex})`;
+            display.step2.innerHTML = `Y = ${lZero} + (${lMax} - ${lZero}) * ${n} / ${nMax}`;
+            display.step3.innerHTML = `Result: <span class="text-emerald-400 font-bold">${y.toFixed(3)}</span> ${unit}`;
+        }
+
+        // 监听所有输入
+        document.querySelectorAll('input, select').forEach(el => {
+            el.addEventListener('input', update);
+        });
+
+        // 初始化
+        update();
+    </script>
+</body>
+</html>

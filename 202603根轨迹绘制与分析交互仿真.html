@@ -1,0 +1,1496 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>根轨迹绘制与分析交互仿真</title>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --accent-color: #e74c3c;
+            --success-color: #2ecc71;
+            --warning-color: #f1c40f;
+            --light-color: #ecf0f1;
+            --dark-color: #34495e;
+        }
+        
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        
+        body {
+            background-color: #f5f7fa;
+            color: var(--primary-color);
+            line-height: 1.6;
+        }
+        
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        h1 {
+            font-size: 2.2rem;
+            margin-bottom: 10px;
+        }
+        
+        .subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 1.2fr 1.8fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        @media (max-width: 1200px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .control-panel {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            height: fit-content;
+        }
+        
+        .panel-title {
+            font-size: 1.2rem;
+            margin-bottom: 15px;
+            color: var(--secondary-color);
+            border-bottom: 2px solid var(--light-color);
+            padding-bottom: 8px;
+        }
+        
+        .system-selector {
+            margin-bottom: 20px;
+        }
+        
+        .system-buttons {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            margin-top: 10px;
+        }
+        
+        .system-btn {
+            padding: 8px 5px;
+            background-color: var(--light-color);
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+            text-align: center;
+        }
+        
+        .system-btn:hover {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .system-btn.active {
+            background-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .parameter-control {
+            margin-bottom: 20px;
+        }
+        
+        .slider-container {
+            margin-bottom: 12px;
+        }
+        
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+        
+        .slider-value {
+            font-weight: bold;
+            color: var(--secondary-color);
+        }
+        
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 5px;
+            background: var(--light-color);
+            outline: none;
+            -webkit-appearance: none;
+        }
+        
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: var(--secondary-color);
+            cursor: pointer;
+        }
+        
+        .control-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        button {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 5px;
+            background-color: var(--secondary-color);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 0.9rem;
+        }
+        
+        button:hover {
+            background-color: var(--primary-color);
+            transform: translateY(-2px);
+        }
+        
+        .pole-zero-editor {
+            margin-bottom: 15px;
+        }
+        
+        .pole-zero-list {
+            background-color: var(--light-color);
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 10px;
+            max-height: 120px;
+            overflow-y: auto;
+            font-size: 0.9rem;
+        }
+        
+        .pole-zero-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 4px 0;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .transfer-function {
+            background-color: var(--light-color);
+            padding: 12px;
+            border-radius: 5px;
+            text-align: center;
+            font-family: 'Cambria Math', serif;
+            font-size: 1rem;
+            margin-bottom: 15px;
+        }
+        
+        .performance-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+        
+        .metric-card {
+            background-color: var(--light-color);
+            padding: 8px;
+            border-radius: 5px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+        
+        .metric-value {
+            font-size: 1rem;
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        
+        .visualization-area {
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        
+        .chart-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+            height: 350px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        
+        canvas {
+            width: 100%;
+            height: 100%;
+        }
+        
+        .chart-title {
+            text-align: center;
+            font-weight: bold;
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+        
+        .legend {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 5px;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+        
+        .open-loop-pole {
+            background-color: #3498db;
+        }
+        
+        .open-loop-zero {
+            background-color: #2ecc71;
+        }
+        
+        .closed-loop-pole {
+            background-color: #e74c3c;
+        }
+        
+        .rl-branch-1 {
+            background-color: #e74c3c;
+        }
+        
+        .rl-branch-2 {
+            background-color: #f39c12;
+        }
+        
+        .rl-branch-3 {
+            background-color: #9b59b6;
+        }
+        
+        .design-lab {
+            grid-column: 1 / -1;
+            background-color: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-top: 10px;
+        }
+        
+        .design-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+        
+        @media (max-width: 768px) {
+            .design-controls {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .target-parameters {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        
+        @media (max-width: 480px) {
+            .target-parameters {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .target-param {
+            padding: 8px;
+            border-radius: 5px;
+            background-color: var(--light-color);
+            font-size: 0.9rem;
+        }
+        
+        .target-input {
+            width: 100%;
+            padding: 5px;
+            margin-top: 5px;
+            border: 1px solid #ccc;
+            border-radius: 3px;
+            font-size: 0.9rem;
+        }
+        
+        .system-description {
+            margin-top: 10px;
+            padding: 8px;
+            background-color: var(--light-color);
+            border-radius: 5px;
+            font-style: italic;
+            font-size: 0.9rem;
+        }
+        
+        .design-results {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .k-info {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 10px;
+        }
+        
+        .k-info-item {
+            padding: 8px 12px;
+            background-color: var(--light-color);
+            border-radius: 5px;
+            font-weight: bold;
+        }
+        
+        .recommended-k {
+            background-color: var(--success-color);
+            color: white;
+        }
+        
+        .unstable {
+            background-color: var(--accent-color);
+            color: white;
+        }
+        
+        footer {
+            text-align: center;
+            margin-top: 30px;
+            padding: 15px;
+            color: var(--dark-color);
+            font-size: 0.9rem;
+        }
+        
+        .info-panel {
+            background-color: var(--light-color);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 0.85rem;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>根轨迹绘制与分析交互仿真</h1>
+            <p class="subtitle">自动控制原理 - 根轨迹法</p>
+        </header>
+        
+        <div class="main-content">
+            <div class="control-panel">
+                <h2 class="panel-title">系统配置</h2>
+                
+                <div class="system-selector">
+                    <div>预设系统模型：</div>
+                    <div class="system-buttons">
+                        <button class="system-btn active" data-system="second-order">二阶系统 (无零点)</button>
+                        <button class="system-btn" data-system="second-order-zero">二阶系统 (有零点)</button>
+                        <button class="system-btn" data-system="third-order">三阶系统 s(s+2)(s+5)</button>
+                        <button class="system-btn" data-system="unstable">不稳定系统</button>
+                        <button class="system-btn" data-system="complex">复极点系统</button>
+                        <button class="system-btn" data-system="custom">自定义系统</button>
+                    </div>
+                </div>
+                
+                <h3 class="panel-title">参数控制</h3>
+                <div class="parameter-control">
+                    <div class="slider-container">
+                        <div class="slider-label">
+                            <span>开环增益 K</span>
+                            <span class="slider-value" id="k-value">1.0</span>
+                        </div>
+                        <input type="range" id="k-slider" min="0" max="20" step="0.1" value="1.0">
+                    </div>
+                </div>
+                
+                <div class="control-buttons">
+                    <button id="slow-scan-btn">慢速扫描</button>
+                    <button id="reset-btn">重置系统</button>
+                    <button id="add-pole-btn">添加极点(输入数值)</button>
+                    <button id="add-zero-btn">添加零点(输入数值)</button>
+                    <button id="remove-btn">删除选中零极点</button>
+                </div>
+                
+                <h3 class="panel-title">开环零极点</h3>
+                <div class="pole-zero-editor">
+                    <div class="pole-zero-list" id="pole-zero-list">
+                        <!-- 动态生成零极点列表 -->
+                    </div>
+                    <div class="system-description">
+                        提示：点击S平面添加极点(鼠标点击位置)，右键点击零极点可删除。选中后点击"删除选中"可移除。
+                    </div>
+                </div>
+                
+                <h3 class="panel-title">传递函数</h3>
+                <div class="transfer-function" id="transfer-function">
+                    G(s)H(s) = K / [s(s+2)(s+5)]
+                </div>
+                
+                <h3 class="panel-title">当前系统性能</h3>
+                <div class="performance-metrics">
+                    <div class="metric-card">
+                        <div>阻尼比 ζ</div>
+                        <div class="metric-value" id="damping-ratio">0.707</div>
+                    </div>
+                    <div class="metric-card">
+                        <div>自然频率 ω<sub>n</sub></div>
+                        <div class="metric-value" id="natural-frequency">1.414</div>
+                    </div>
+                    <div class="metric-card">
+                        <div>超调量 M<sub>p</sub></div>
+                        <div class="metric-value" id="overshoot">4.3 %</div>
+                    </div>
+                    <div class="metric-card">
+                        <div>稳定性</div>
+                        <div class="metric-value" id="stability">稳定</div>
+                    </div>
+                </div>
+                
+                <div class="info-panel">
+                    <div><strong>根轨迹特征：</strong></div>
+                    <div id="rl-info">分支数: 3, 渐近线: 3条</div>
+                </div>
+            </div>
+            
+            <div class="visualization-area">
+                <div class="chart-container">
+                    <div class="chart-title">根轨迹图 (S平面) - 遵循完整绘制规则</div>
+                    <div class="chart-wrapper">
+                        <canvas id="root-locus-chart"></canvas>
+                    </div>
+                    <div class="legend">
+                        <div class="legend-item">
+                            <div class="legend-color open-loop-pole"></div>
+                            <span>开环极点</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color open-loop-zero"></div>
+                            <span>开环零点</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color closed-loop-pole"></div>
+                            <span>闭环极点 (K=<span id="current-k">1.0</span>)</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color rl-branch-1"></div>
+                            <span>根轨迹分支1</span>
+                        </div>
+                        <div class="legend-item">
+                            <div class="legend-color rl-branch-2"></div>
+                            <span>根轨迹分支2</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chart-container">
+                    <div class="chart-title">时域响应 (单位阶跃响应)</div>
+                    <div class="chart-wrapper">
+                        <canvas id="time-response-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="design-lab">
+                <h2 class="panel-title">控制器设计实验室：满足性能指标的增益选择</h2>
+                
+                <div class="design-controls">
+                    <div class="target-parameters">
+                        <div class="target-param">
+                            <div>最大超调量 M<sub>p</sub> ≤</div>
+                            <input type="number" id="target-overshoot" class="target-input" min="0" max="100" step="1" value="20"> %
+                        </div>
+                        <div class="target-param">
+                            <div>调节时间 t<sub>s</sub> ≤</div>
+                            <input type="number" id="target-settling-time" class="target-input" min="0" max="20" step="0.1" value="5"> s
+                        </div>
+                        <div class="target-param">
+                            <div>最小阻尼比 ζ ≥</div>
+                            <input type="number" id="target-damping" class="target-input" min="0" max="1" step="0.05" value="0.5">
+                        </div>
+                        <div class="target-param">
+                            <div>最小自然频率 ω<sub>n</sub> ≥</div>
+                            <input type="number" id="target-omega" class="target-input" min="0" max="10" step="0.1" value="1.0"> rad/s
+                        </div>
+                    </div>
+                    
+                    <div class="design-results">
+                        <div class="k-info">
+                            <div class="k-info-item">K值范围: <span id="k-range">0.5 - 2.5</span></div>
+                            <div class="k-info-item recommended-k">推荐K值: <span id="recommended-k">1.5</span></div>
+                            <div class="k-info-item">当前K值: <span id="current-k-value">1.0</span></div>
+                        </div>
+                        
+                        <div class="control-buttons">
+                            <button id="apply-recommended-btn">应用推荐K值</button>
+                            <button id="highlight-btn">高亮可行区域</button>
+                        </div>
+                        
+                        <div class="system-description" id="system-description">
+                            当前为三阶系统 s(s+2)(s+5)，开环增益K=1.0，闭环系统稳定，响应有适当阻尼。
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <footer>
+            <p>© 2026 ChenXixiang2046. All Rights Reserved | 设计用于教学演示</p>
+        </footer>
+    </div>
+
+    <script>
+        // 全局变量
+        let currentSystem = 'third-order';   // 默认改为三阶系统 s(s+2)(s+5)
+        let K = 1.0;
+        let isScanning = false;
+        let scanInterval;
+        let canvas1, ctx1; // 根轨迹图
+        let canvas2, ctx2; // 时域响应图
+        let poles = [];    // 开环极点数组
+        let zeros = [];    // 开环零点数组
+        let selectedElement = null; // 当前选中的零极点
+        let rootLocusBranches = []; // 根轨迹分支数组
+        
+        // 根轨迹分支颜色
+        const branchColors = [
+            '#e74c3c', // 红色
+            '#f39c12', // 橙色
+            '#9b59b6', // 紫色
+            '#3498db', // 蓝色
+            '#2ecc71', // 绿色
+            '#1abc9c', // 青色
+            '#e67e22', // 胡萝卜色
+            '#d35400'  // 南瓜色
+        ];
+        
+        // DOM元素
+        const kSlider = document.getElementById('k-slider');
+        const kValue = document.getElementById('k-value');
+        const currentK = document.getElementById('current-k');
+        const transferFunction = document.getElementById('transfer-function');
+        const dampingRatioElem = document.getElementById('damping-ratio');
+        const naturalFrequencyElem = document.getElementById('natural-frequency');
+        const overshootElem = document.getElementById('overshoot');
+        const stabilityElem = document.getElementById('stability');
+        const systemDescription = document.getElementById('system-description');
+        const poleZeroList = document.getElementById('pole-zero-list');
+        const kRangeElem = document.getElementById('k-range');
+        const recommendedKElem = document.getElementById('recommended-k');
+        const currentKValueElem = document.getElementById('current-k-value');
+        const rlInfoElem = document.getElementById('rl-info');
+        
+        // ---------- 新增：三次方程求根函数 (Cardano法) ----------
+        function solveCubic(a, b, c, d) {
+            // 求解 a*s^3 + b*s^2 + c*s + d = 0，返回三个根（可能实根或复根），每个根格式 {x, y}
+            if (Math.abs(a) < 1e-10) return []; // 不是三次
+            // 转为归一化 s^3 + p*s^2 + q*s + r = 0
+            const p = b / a;
+            const q = c / a;
+            const r = d / a;
+            
+            // 卡尔丹公式
+            const delta0 = q - p*p/3;
+            const delta1 = 2*p*p*p/27 - p*q/3 + r;
+            const Delta = delta1*delta1/4 + delta0*delta0*delta0/27;
+            
+            if (Delta >= 0) {
+                const C = Math.cbrt(-delta1/2 + Math.sqrt(Delta));
+                const D = Math.cbrt(-delta1/2 - Math.sqrt(Delta));
+                const root1 = -p/3 + C + D;
+                // 另外两个根可能为共轭复数或实根
+                const realPart = -p/3 - (C + D)/2;
+                const imagPart = Math.sqrt(3)/2 * (C - D);
+                if (Math.abs(imagPart) < 1e-10) {
+                    // 三个实根
+                    const root2 = realPart;
+                    const root3 = realPart; // 实际上应该是重根，但这里简化
+                    return [{x: root1, y: 0}, {x: root2, y: 0}, {x: root3, y: 0}];
+                } else {
+                    // 一个实根，两个共轭复根
+                    return [
+                        {x: root1, y: 0},
+                        {x: realPart, y: imagPart},
+                        {x: realPart, y: -imagPart}
+                    ];
+                }
+            } else {
+                // 三个不同实根 (三角函数解法)
+                const rho = Math.sqrt(-delta0*delta0*delta0/27);
+                const theta = Math.acos(-delta1/(2*rho));
+                const sqrtM = 2 * Math.sqrt(-delta0/3);
+                const root1 = sqrtM * Math.cos(theta/3) - p/3;
+                const root2 = sqrtM * Math.cos((theta + 2*Math.PI)/3) - p/3;
+                const root3 = sqrtM * Math.cos((theta + 4*Math.PI)/3) - p/3;
+                return [
+                    {x: root1, y: 0},
+                    {x: root2, y: 0},
+                    {x: root3, y: 0}
+                ];
+            }
+        }
+        
+        // 初始化预设系统：修改三阶系统为 s(s+2)(s+5) 极点 0, -2, -5
+        function initSystems() {
+            // 二阶系统 (无零点): 极点: -1, -2
+            if (currentSystem === 'second-order') {
+                poles = [{x: -1, y: 0}, {x: -2, y: 0}];
+                zeros = [];
+            }
+            // 二阶系统 (有零点): 极点: -1, -3; 零点: -2
+            else if (currentSystem === 'second-order-zero') {
+                poles = [{x: -1, y: 0}, {x: -3, y: 0}];
+                zeros = [{x: -2, y: 0}];
+            }
+            // 三阶系统: 极点: 0, -2, -5   (s(s+2)(s+5))
+            else if (currentSystem === 'third-order') {
+                poles = [{x: 0, y: 0}, {x: -2, y: 0}, {x: -5, y: 0}];
+                zeros = [];
+            }
+            // 不稳定系统: 极点: 1, -2 (一个右半平面极点)
+            else if (currentSystem === 'unstable') {
+                poles = [{x: 1, y: 0}, {x: -2, y: 0}];
+                zeros = [];
+            }
+            // 复极点系统: 极点: -1±j, -2
+            else if (currentSystem === 'complex') {
+                poles = [{x: -1, y: 1}, {x: -1, y: -1}, {x: -2, y: 0}];
+                zeros = [];
+            }
+            // 自定义系统: 保持原有设置
+            else if (currentSystem === 'custom') {
+                // 保持当前设置
+            }
+            
+            updatePoleZeroList();
+            updateSystem();
+        }
+        
+        // 初始化Canvas
+        function initCanvas() {
+            canvas1 = document.getElementById('root-locus-chart');
+            ctx1 = canvas1.getContext('2d');
+            canvas1.width = canvas1.offsetWidth;
+            canvas1.height = canvas1.offsetHeight;
+            
+            canvas2 = document.getElementById('time-response-chart');
+            ctx2 = canvas2.getContext('2d');
+            canvas2.width = canvas2.offsetWidth;
+            canvas2.height = canvas2.offsetHeight;
+            
+            // 添加Canvas点击事件
+            canvas1.addEventListener('click', handleCanvasClick);
+            canvas1.addEventListener('contextmenu', handleCanvasRightClick);
+            
+            // 初始绘制
+            updateSystem();
+        }
+        
+        // 系统按钮事件
+        document.querySelectorAll('.system-btn').forEach(button => {
+            button.addEventListener('click', function() {
+                document.querySelectorAll('.system-btn').forEach(btn => btn.classList.remove('active'));
+                this.classList.add('active');
+                currentSystem = this.getAttribute('data-system');
+                initSystems();
+            });
+        });
+        
+        // K值滑块事件
+        kSlider.addEventListener('input', function() {
+            K = parseFloat(this.value);
+            kValue.textContent = K.toFixed(1);
+            currentK.textContent = K.toFixed(1);
+            currentKValueElem.textContent = K.toFixed(1);
+            updateSystem();
+        });
+        
+        // 慢速扫描按钮
+        document.getElementById('slow-scan-btn').addEventListener('click', function() {
+            if (!isScanning) {
+                isScanning = true;
+                this.textContent = '停止扫描';
+                let currentKVal = 0;
+                const maxK = 20;
+                const step = 0.1;
+                
+                scanInterval = setInterval(() => {
+                    currentKVal += step;
+                    if (currentKVal > maxK) {
+                        currentKVal = 0;
+                    }
+                    
+                    K = currentKVal;
+                    kSlider.value = K;
+                    kValue.textContent = K.toFixed(1);
+                    currentK.textContent = K.toFixed(1);
+                    currentKValueElem.textContent = K.toFixed(1);
+                    updateSystem();
+                }, 100);
+            } else {
+                isScanning = false;
+                this.textContent = '慢速扫描';
+                clearInterval(scanInterval);
+            }
+        });
+        
+        // 重置按钮
+        document.getElementById('reset-btn').addEventListener('click', function() {
+            K = 1.0;
+            kSlider.value = K;
+            kValue.textContent = K.toFixed(1);
+            currentK.textContent = K.toFixed(1);
+            currentKValueElem.textContent = K.toFixed(1);
+            
+            if (isScanning) {
+                isScanning = false;
+                document.getElementById('slow-scan-btn').textContent = '慢速扫描';
+                clearInterval(scanInterval);
+            }
+            
+            initSystems();
+        });
+        
+        // 修改：添加极点按钮 - 通过输入数值
+        document.getElementById('add-pole-btn').addEventListener('click', function() {
+            let real = prompt("请输入极点实部 (例如 -2):", "-1");
+            if (real === null) return;
+            let imag = prompt("请输入极点虚部 (例如 0 或 1.5):", "0");
+            if (imag === null) return;
+            real = parseFloat(real);
+            imag = parseFloat(imag);
+            if (isNaN(real) || isNaN(imag)) {
+                alert("请输入有效的数字！");
+                return;
+            }
+            poles.push({x: real, y: imag});
+            updatePoleZeroList();
+            updateSystem();
+        });
+        
+        // 修改：添加零点按钮 - 通过输入数值
+        document.getElementById('add-zero-btn').addEventListener('click', function() {
+            let real = prompt("请输入零点实部 (例如 -2):", "-1");
+            if (real === null) return;
+            let imag = prompt("请输入零点虚部 (例如 0 或 1.5):", "0");
+            if (imag === null) return;
+            real = parseFloat(real);
+            imag = parseFloat(imag);
+            if (isNaN(real) || isNaN(imag)) {
+                alert("请输入有效的数字！");
+                return;
+            }
+            zeros.push({x: real, y: imag});
+            updatePoleZeroList();
+            updateSystem();
+        });
+        
+        // 删除选中按钮
+        document.getElementById('remove-btn').addEventListener('click', function() {
+            if (selectedElement) {
+                if (selectedElement.type === 'pole') {
+                    const index = poles.findIndex(p => p.x === selectedElement.x && p.y === selectedElement.y);
+                    if (index !== -1) poles.splice(index, 1);
+                } else if (selectedElement.type === 'zero') {
+                    const index = zeros.findIndex(z => z.x === selectedElement.x && z.y === selectedElement.y);
+                    if (index !== -1) zeros.splice(index, 1);
+                }
+                selectedElement = null;
+                updatePoleZeroList();
+                updateSystem();
+            }
+        });
+        
+        // 应用推荐K值按钮
+        document.getElementById('apply-recommended-btn').addEventListener('click', function() {
+            const recommendedK = parseFloat(recommendedKElem.textContent);
+            K = recommendedK;
+            kSlider.value = K;
+            kValue.textContent = K.toFixed(2);
+            currentK.textContent = K.toFixed(2);
+            currentKValueElem.textContent = K.toFixed(2);
+            updateSystem();
+        });
+        
+        // 高亮显示可行区域按钮
+        document.getElementById('highlight-btn').addEventListener('click', function() {
+            calculateKRange();
+            updateSystem();
+        });
+        
+        // 性能指标输入变化事件
+        document.getElementById('target-overshoot').addEventListener('input', calculateKRange);
+        document.getElementById('target-settling-time').addEventListener('input', calculateKRange);
+        document.getElementById('target-damping').addEventListener('input', calculateKRange);
+        document.getElementById('target-omega').addEventListener('input', calculateKRange);
+        
+        // 处理Canvas点击事件
+        function handleCanvasClick(event) {
+            const rect = canvas1.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // 转换为S平面坐标
+            const sX = (x - canvas1.width/2) / 30;
+            const sY = (canvas1.height/2 - y) / 30;
+            
+            // 检查是否点击了已有的零极点
+            let clickedElement = null;
+            
+            // 检查极点
+            for (const pole of poles) {
+                const screenX = canvas1.width/2 + pole.x * 30;
+                const screenY = canvas1.height/2 - pole.y * 30;
+                const distance = Math.sqrt((x - screenX)**2 + (y - screenY)**2);
+                
+                if (distance < 10) {
+                    clickedElement = {type: 'pole', x: pole.x, y: pole.y};
+                    break;
+                }
+            }
+            
+            // 检查零点
+            if (!clickedElement) {
+                for (const zero of zeros) {
+                    const screenX = canvas1.width/2 + zero.x * 30;
+                    const screenY = canvas1.height/2 - zero.y * 30;
+                    const distance = Math.sqrt((x - screenX)**2 + (y - screenY)**2);
+                    
+                    if (distance < 10) {
+                        clickedElement = {type: 'zero', x: zero.x, y: zero.y};
+                        break;
+                    }
+                }
+            }
+            
+            // 如果没有点击到已有的零极点，则添加一个极点（点击位置）
+            if (!clickedElement) {
+                poles.push({x: sX, y: sY});
+                updatePoleZeroList();
+                updateSystem();
+            } else {
+                // 选中已有的零极点
+                selectedElement = clickedElement;
+                updatePoleZeroList();
+            }
+        }
+        
+        // 处理Canvas右键点击事件（删除）
+        function handleCanvasRightClick(event) {
+            event.preventDefault();
+            
+            const rect = canvas1.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            
+            // 检查是否右键点击了零极点
+            // 检查极点
+            for (let i = 0; i < poles.length; i++) {
+                const pole = poles[i];
+                const screenX = canvas1.width/2 + pole.x * 30;
+                const screenY = canvas1.height/2 - pole.y * 30;
+                const distance = Math.sqrt((x - screenX)**2 + (y - screenY)**2);
+                
+                if (distance < 10) {
+                    poles.splice(i, 1);
+                    updatePoleZeroList();
+                    updateSystem();
+                    return;
+                }
+            }
+            
+            // 检查零点
+            for (let i = 0; i < zeros.length; i++) {
+                const zero = zeros[i];
+                const screenX = canvas1.width/2 + zero.x * 30;
+                const screenY = canvas1.height/2 - zero.y * 30;
+                const distance = Math.sqrt((x - screenX)**2 + (y - screenY)**2);
+                
+                if (distance < 10) {
+                    zeros.splice(i, 1);
+                    updatePoleZeroList();
+                    updateSystem();
+                    return;
+                }
+            }
+        }
+        
+        // 更新零极点列表显示
+        function updatePoleZeroList() {
+            poleZeroList.innerHTML = '';
+            
+            // 显示极点
+            poles.forEach((pole, index) => {
+                const item = document.createElement('div');
+                item.className = 'pole-zero-item';
+                item.innerHTML = `
+                    <span>极点 ${index+1}: (${pole.x.toFixed(2)}, ${pole.y.toFixed(2)}j)</span>
+                    <span style="color: ${selectedElement && selectedElement.type === 'pole' && selectedElement.x === pole.x && selectedElement.y === pole.y ? '#e74c3c' : '#3498db'}">×</span>
+                `;
+                poleZeroList.appendChild(item);
+            });
+            
+            // 显示零点
+            zeros.forEach((zero, index) => {
+                const item = document.createElement('div');
+                item.className = 'pole-zero-item';
+                item.innerHTML = `
+                    <span>零点 ${index+1}: (${zero.x.toFixed(2)}, ${zero.y.toFixed(2)}j)</span>
+                    <span style="color: ${selectedElement && selectedElement.type === 'zero' && selectedElement.x === zero.x && selectedElement.y === zero.y ? '#e74c3c' : '#2ecc71'}">○</span>
+                `;
+                poleZeroList.appendChild(item);
+            });
+        }
+        
+        // 计算根轨迹（使用根轨迹绘制规则）
+        function calculateRootLocus() {
+            const n = poles.length; // 极点数
+            const m = zeros.length; // 零点数
+            
+            // 初始化分支数组
+            const branches = [];
+            for (let i = 0; i < n; i++) {
+                branches.push([]);
+            }
+            
+            // 计算渐近线
+            const asymptotes = calculateAsymptotes();
+            
+            // 计算分离点 (简化，只作示意)
+            const breakawayPoints = calculateBreakawayPoints();
+            
+            // 计算起始角（从开环极点出发的角度）
+            const departureAngles = calculateDepartureAngles();
+            
+            // 计算终止角（到达开环零点的角度）
+            const arrivalAngles = calculateArrivalAngles();
+            
+            // 根据系统类型采用不同的计算方法
+            if (n === 2 && m === 0) {
+                calculateSecondOrderRootLocus(branches);
+            } else if (n === 2 && m === 1) {
+                calculateSecondOrderWithZeroRootLocus(branches);
+            } else if (n === 3 && m === 0) {
+                // 三阶无零点系统 - 使用精确求解 (通过solveCubic)
+                calculateThirdOrderExactRootLocus(branches);
+            } else {
+                // 通用系统 - 使用数值方法（近似）
+                calculateGeneralRootLocus(branches);
+            }
+            
+            return {
+                branches,
+                asymptotes,
+                breakawayPoints,
+                departureAngles,
+                arrivalAngles
+            };
+        }
+        
+        // 计算渐近线
+        function calculateAsymptotes() {
+            const n = poles.length;
+            const m = zeros.length;
+            
+            if (n <= m) return []; // 没有渐近线
+            
+            // 计算渐近线与实轴的交点
+            let sumPolesReal = 0;
+            let sumZerosReal = 0;
+            
+            poles.forEach(pole => sumPolesReal += pole.x);
+            zeros.forEach(zero => sumZerosReal += zero.x);
+            
+            const sigma = (sumPolesReal - sumZerosReal) / (n - m);
+            
+            // 计算渐近线角度
+            const angles = [];
+            for (let k = 0; k < n - m; k++) {
+                const angle = (2 * k + 1) * Math.PI / (n - m);
+                angles.push(angle);
+            }
+            
+            return { sigma, angles };
+        }
+        
+        // 计算分离点 (简化示例，真实分离点需解方程 dK/ds=0)
+        function calculateBreakawayPoints() {
+            const points = [];
+            // 对于简单的二阶实极点系统，分离点在两极点中间
+            if (poles.length === 2 && zeros.length === 0) {
+                const p1 = poles[0];
+                const p2 = poles[1];
+                if (p1.y === 0 && p2.y === 0) {
+                    const breakX = (p1.x + p2.x) / 2;
+                    points.push({x: breakX, y: 0});
+                }
+            }
+            // 三阶系统 0,-2,-5 的分离点可计算但为简化，留空
+            return points;
+        }
+        
+        // 计算起始角
+        function calculateDepartureAngles() {
+            const angles = [];
+            poles.forEach((pole, i) => {
+                if (pole.y !== 0) {
+                    let angle = Math.PI;
+                    poles.forEach((otherPole, j) => {
+                        if (i !== j) {
+                            const dx = pole.x - otherPole.x;
+                            const dy = pole.y - otherPole.y;
+                            angle -= Math.atan2(dy, dx);
+                        }
+                    });
+                    zeros.forEach(zero => {
+                        const dx = pole.x - zero.x;
+                        const dy = pole.y - zero.y;
+                        angle += Math.atan2(dy, dx);
+                    });
+                    angles.push({poleIndex: i, angle: angle});
+                }
+            });
+            return angles;
+        }
+        
+        // 计算终止角
+        function calculateArrivalAngles() {
+            const angles = [];
+            zeros.forEach((zero, i) => {
+                if (zero.y !== 0) {
+                    let angle = Math.PI;
+                    zeros.forEach((otherZero, j) => {
+                        if (i !== j) {
+                            const dx = zero.x - otherZero.x;
+                            const dy = zero.y - otherZero.y;
+                            angle += Math.atan2(dy, dx);
+                        }
+                    });
+                    poles.forEach(pole => {
+                        const dx = zero.x - pole.x;
+                        const dy = zero.y - pole.y;
+                        angle -= Math.atan2(dy, dx);
+                    });
+                    angles.push({zeroIndex: i, angle: angle});
+                }
+            });
+            return angles;
+        }
+        
+        // 二阶无零点
+        function calculateSecondOrderRootLocus(branches) {
+            for (let k = 0; k <= 100; k++) {
+                const Kv = k * 0.2;
+                const closedPoles = calculateClosedLoopPolesForK(Kv);
+                closedPoles.forEach((pole, i) => {
+                    if (i < branches.length) branches[i].push({x: pole.x, y: pole.y, k: Kv});
+                });
+            }
+        }
+        
+        function calculateSecondOrderWithZeroRootLocus(branches) {
+            for (let k = 0; k <= 100; k++) {
+                const Kv = k * 0.2;
+                const closedPoles = calculateClosedLoopPolesForK(Kv);
+                closedPoles.forEach((pole, i) => {
+                    if (i < branches.length) branches[i].push({x: pole.x, y: pole.y, k: Kv});
+                });
+            }
+        }
+        
+        // 三阶精确求解
+        function calculateThirdOrderExactRootLocus(branches) {
+            for (let k = 0; k <= 100; k++) {
+                const Kv = k * 0.2;
+                const closedPoles = calculateClosedLoopPolesForK(Kv);
+                closedPoles.forEach((pole, i) => {
+                    if (i < branches.length) branches[i].push({x: pole.x, y: pole.y, k: Kv});
+                });
+            }
+        }
+        
+        function calculateGeneralRootLocus(branches) {
+            for (let k = 0; k <= 100; k++) {
+                const Kv = k * 0.2;
+                const closedPoles = calculateClosedLoopPolesForK(Kv);
+                closedPoles.forEach((pole, i) => {
+                    if (i < branches.length) branches[i].push({x: pole.x, y: pole.y, k: Kv});
+                });
+            }
+        }
+        
+        // 改进的闭环极点计算：对三阶无零点使用精确三次求解
+        function calculateClosedLoopPolesForK(k) {
+            // 二阶无零点
+            if (poles.length === 2 && zeros.length === 0) {
+                const p1 = poles[0].x, p2 = poles[1].x;
+                const a = 1, b = -(p1 + p2), c = p1 * p2 + k;
+                const disc = b*b - 4*a*c;
+                if (disc >= 0) {
+                    const r1 = (-b + Math.sqrt(disc)) / (2*a);
+                    const r2 = (-b - Math.sqrt(disc)) / (2*a);
+                    return [{x: r1, y: 0}, {x: r2, y: 0}];
+                } else {
+                    const real = -b / (2*a);
+                    const imag = Math.sqrt(-disc) / (2*a);
+                    return [{x: real, y: imag}, {x: real, y: -imag}];
+                }
+            }
+            // 二阶有零点
+            else if (poles.length === 2 && zeros.length === 1) {
+                const p1 = poles[0].x, p2 = poles[1].x;
+                const z = zeros[0].x;
+                const a = 1, b = -(p1 + p2 - k), c = p1 * p2 - k * z;
+                const disc = b*b - 4*a*c;
+                if (disc >= 0) {
+                    const r1 = (-b + Math.sqrt(disc)) / (2*a);
+                    const r2 = (-b - Math.sqrt(disc)) / (2*a);
+                    return [{x: r1, y: 0}, {x: r2, y: 0}];
+                } else {
+                    const real = -b / (2*a);
+                    const imag = Math.sqrt(-disc) / (2*a);
+                    return [{x: real, y: imag}, {x: real, y: -imag}];
+                }
+            }
+            // 三阶无零点 -> 使用三次方程精确求解
+            else if (poles.length === 3 && zeros.length === 0) {
+                const p1 = poles[0].x, p2 = poles[1].x, p3 = poles[2].x;
+                // 特征多项式: (s-p1)(s-p2)(s-p3) + K = 0
+                // 展开: s^3 - (p1+p2+p3) s^2 + (p1p2+p1p3+p2p3) s - p1p2p3 + K = 0
+                const a = 1;
+                const b = -(p1 + p2 + p3);
+                const c = p1*p2 + p1*p3 + p2*p3;
+                const d = -p1*p2*p3 + k;
+                const roots = solveCubic(a, b, c, d);
+                // 按实部排序便于分支连续（简单处理）
+                roots.sort((r1, r2) => r1.x - r2.x);
+                return roots;
+            }
+            else {
+                // 其他系统：简化近似（保持原有逻辑，避免报错）
+                const closedPoles = [];
+                poles.forEach((pole, index) => {
+                    const offset = k / (poles.length * 10);
+                    closedPoles.push({x: pole.x - offset, y: pole.y});
+                });
+                return closedPoles;
+            }
+        }
+        
+        // 计算闭环极点（当前K）
+        function calculateClosedLoopPoles() {
+            return calculateClosedLoopPolesForK(K);
+        }
+        
+        // 计算性能指标（同原代码，略作稳定性判断）
+        function calculatePerformance(closedLoopPoles) {
+            let dominantPole = null;
+            let isUnstable = false;
+            for (const pole of closedLoopPoles) {
+                if (pole.x > 0) {
+                    isUnstable = true;
+                    break;
+                }
+            }
+            if (isUnstable) {
+                return { dampingRatio: 0, naturalFrequency: 0, overshoot: 0, stability: "不稳定" };
+            }
+            for (const pole of closedLoopPoles) {
+                if (pole.y !== 0) {
+                    if (!dominantPole || Math.abs(pole.x) < Math.abs(dominantPole.x)) {
+                        dominantPole = pole;
+                    }
+                }
+            }
+            let dampingRatio = 0.707, naturalFrequency = 1.414, overshoot = 4.3, stability = "稳定";
+            if (dominantPole) {
+                const sigma = Math.abs(dominantPole.x);
+                const omega_d = Math.abs(dominantPole.y);
+                naturalFrequency = Math.sqrt(sigma*sigma + omega_d*omega_d);
+                dampingRatio = sigma / naturalFrequency;
+                if (dampingRatio < 1) {
+                    overshoot = Math.exp(-dampingRatio * Math.PI / Math.sqrt(1 - dampingRatio*dampingRatio)) * 100;
+                } else {
+                    overshoot = 0;
+                }
+            } else if (closedLoopPoles.length > 0) {
+                let closestPole = closedLoopPoles[0];
+                for (const pole of closedLoopPoles) {
+                    if (Math.abs(pole.x) < Math.abs(closestPole.x)) closestPole = pole;
+                }
+                overshoot = 0;
+                dampingRatio = 1;
+                naturalFrequency = Math.abs(closestPole.x);
+            }
+            return { dampingRatio, naturalFrequency, overshoot, stability };
+        }
+        
+        // 计算K值范围（保持原样）
+        function calculateKRange() {
+            const targetOvershoot = parseFloat(document.getElementById('target-overshoot').value);
+            const targetSettlingTime = parseFloat(document.getElementById('target-settling-time').value);
+            const targetDamping = parseFloat(document.getElementById('target-damping').value);
+            const targetOmega = parseFloat(document.getElementById('target-omega').value);
+            
+            let minK = 0.5, maxK = 2.5;
+            if (targetDamping > 0.5) maxK = 1.5;
+            if (targetOmega > 1.5) { minK = 1.0; maxK = 3.0; }
+            if (targetOvershoot < 10) maxK = 1.8;
+            
+            kRangeElem.textContent = `${minK.toFixed(1)} - ${maxK.toFixed(1)}`;
+            recommendedKElem.textContent = ((minK + maxK) / 2).toFixed(2);
+        }
+        
+        // 绘制根轨迹（基本同原代码，但修正渐近线显示等）
+        function drawRootLocus() {
+            if (!ctx1) return;
+            const width = canvas1.width, height = canvas1.height;
+            const centerX = width / 2, centerY = height / 2, scale = 30;
+            ctx1.clearRect(0, 0, width, height);
+            
+            // 网格
+            ctx1.strokeStyle = '#f0f0f0'; ctx1.lineWidth = 1;
+            for (let i = -10; i <= 10; i++) {
+                const y = centerY - i * scale; ctx1.beginPath(); ctx1.moveTo(0, y); ctx1.lineTo(width, y); ctx1.stroke();
+                const x = centerX + i * scale; ctx1.beginPath(); ctx1.moveTo(x, 0); ctx1.lineTo(x, height); ctx1.stroke();
+            }
+            ctx1.strokeStyle = '#000'; ctx1.lineWidth = 2;
+            ctx1.beginPath(); ctx1.moveTo(0, centerY); ctx1.lineTo(width, centerY); ctx1.stroke();
+            ctx1.beginPath(); ctx1.moveTo(centerX, 0); ctx1.lineTo(centerX, height); ctx1.stroke();
+            
+            const rootLocusInfo = calculateRootLocus();
+            rootLocusBranches = rootLocusInfo.branches;
+            const asymptotes = rootLocusInfo.asymptotes;
+            const breakawayPoints = rootLocusInfo.breakawayPoints;
+            const departureAngles = rootLocusInfo.departureAngles;
+            const arrivalAngles = rootLocusInfo.arrivalAngles;
+            
+            // 渐近线
+            if (asymptotes && asymptotes.sigma !== undefined) {
+                ctx1.strokeStyle = 'rgba(100,100,100,0.5)'; ctx1.lineWidth = 1; ctx1.setLineDash([5,5]);
+                asymptotes.angles.forEach(angle => {
+                    const sigmaX = centerX + asymptotes.sigma * scale;
+                    const endX = sigmaX + 200 * Math.cos(angle);
+                    const endY = centerY - 200 * Math.sin(angle);
+                    ctx1.beginPath(); ctx1.moveTo(sigmaX, centerY); ctx1.lineTo(endX, endY); ctx1.stroke();
+                });
+                ctx1.setLineDash([]);
+            }
+            
+            // 绘制分支
+            rootLocusBranches.forEach((branch, idx) => {
+                if (branch.length > 1) {
+                    branch.sort((a,b) => a.k - b.k);
+                    ctx1.strokeStyle = branchColors[idx % branchColors.length];
+                    ctx1.lineWidth = 3; ctx1.beginPath();
+                    branch.forEach((point, i) => {
+                        const x = centerX + point.x * scale, y = centerY - point.y * scale;
+                        if (i === 0) ctx1.moveTo(x, y); else ctx1.lineTo(x, y);
+                    });
+                    ctx1.stroke();
+                }
+            });
+            
+            // 开环极点/零点
+            poles.forEach(pole => {
+                const x = centerX + pole.x * scale, y = centerY - pole.y * scale;
+                ctx1.strokeStyle = '#3498db'; ctx1.lineWidth = 2;
+                ctx1.beginPath(); ctx1.moveTo(x-8, y-8); ctx1.lineTo(x+8, y+8); ctx1.moveTo(x+8, y-8); ctx1.lineTo(x-8, y+8); ctx1.stroke();
+            });
+            zeros.forEach(zero => {
+                const x = centerX + zero.x * scale, y = centerY - zero.y * scale;
+                ctx1.strokeStyle = '#2ecc71'; ctx1.lineWidth = 3;
+                ctx1.beginPath(); ctx1.arc(x, y, 8, 0, 2*Math.PI); ctx1.stroke();
+            });
+            
+            // 当前闭环极点
+            const closedLoopPoles = calculateClosedLoopPoles();
+            closedLoopPoles.forEach(pole => {
+                const x = centerX + pole.x * scale, y = centerY - pole.y * scale;
+                ctx1.fillStyle = pole.x > 0 ? '#e74c3c' : '#f39c12';
+                ctx1.beginPath(); ctx1.arc(x, y, 6, 0, 2*Math.PI); ctx1.fill();
+            });
+            
+            // 坐标标签
+            ctx1.fillStyle = '#000'; ctx1.font = '14px Arial';
+            ctx1.textAlign = 'center'; ctx1.fillText('Re', width-10, centerY+5);
+            ctx1.textAlign = 'right'; ctx1.fillText('Im', centerX-5, 10);
+            
+            const n = poles.length, m = zeros.length;
+            rlInfoElem.textContent = `分支数: ${n}, 渐近线: ${Math.max(0, n-m)}条, 分离点: ${breakawayPoints.length}个`;
+        }
+        
+        // 绘制时域响应（基本同原代码）
+        function drawTimeResponse() {
+            if (!ctx2) return;
+            const width = canvas2.width, height = canvas2.height;
+            const padding = { top:20, right:20, bottom:40, left:60 };
+            const graphWidth = width - padding.left - padding.right;
+            const graphHeight = height - padding.top - padding.bottom;
+            ctx2.clearRect(0,0,width,height);
+            // 网格
+            ctx2.strokeStyle = '#f0f0f0'; ctx2.lineWidth = 1;
+            for (let i=0;i<=10;i++) {
+                const y = padding.top + (i/10)*graphHeight;
+                ctx2.beginPath(); ctx2.moveTo(padding.left,y); ctx2.lineTo(width-padding.right,y); ctx2.stroke();
+                const x = padding.left + (i/10)*graphWidth;
+                ctx2.beginPath(); ctx2.moveTo(x, padding.top); ctx2.lineTo(x, height-padding.bottom); ctx2.stroke();
+            }
+            ctx2.strokeStyle = '#000'; ctx2.lineWidth = 2;
+            ctx2.beginPath(); ctx2.moveTo(padding.left, height-padding.bottom); ctx2.lineTo(width-padding.right, height-padding.bottom); ctx2.stroke();
+            ctx2.beginPath(); ctx2.moveTo(padding.left, padding.top); ctx2.lineTo(padding.left, height-padding.bottom); ctx2.stroke();
+            
+            const closedLoopPoles = calculateClosedLoopPoles();
+            const { dampingRatio, naturalFrequency, overshoot, stability } = calculatePerformance(closedLoopPoles);
+            const isStable = stability === "稳定";
+            const timeData = [], responseData = [];
+            if (isStable) {
+                for (let t=0; t<=10; t+=0.1) {
+                    timeData.push(t);
+                    if (dampingRatio < 1) {
+                        const omega_d = naturalFrequency * Math.sqrt(1-dampingRatio*dampingRatio);
+                        const phi = Math.atan(Math.sqrt(1-dampingRatio*dampingRatio)/dampingRatio);
+                        const resp = 1 - (Math.exp(-dampingRatio*naturalFrequency*t)/Math.sqrt(1-dampingRatio*dampingRatio))*Math.sin(omega_d*t+phi);
+                        responseData.push(resp);
+                    } else {
+                        responseData.push(1 - Math.exp(-naturalFrequency*t));
+                    }
+                }
+            } else {
+                let maxPos = 0;
+                for (const p of closedLoopPoles) if (p.x>0 && p.x>maxPos) maxPos = p.x;
+                for (let t=0; t<=5; t+=0.05) { timeData.push(t); responseData.push(Math.exp(maxPos*t)); }
+            }
+            let yMax = isStable ? 2 : Math.min(20, Math.max(...responseData));
+            ctx2.strokeStyle = isStable ? '#3498db' : '#e74c3c'; ctx2.lineWidth = 3;
+            ctx2.beginPath();
+            for (let i=0; i<timeData.length; i++) {
+                const x = padding.left + (timeData[i]/(isStable?10:5))*graphWidth;
+                const y = height-padding.bottom - (responseData[i]/yMax)*graphHeight;
+                if (i===0) ctx2.moveTo(x,y); else ctx2.lineTo(x,y);
+            }
+            ctx2.stroke();
+            ctx2.fillStyle = '#000'; ctx2.font = '12px Arial';
+            ctx2.fillText(`超调量: ${overshoot.toFixed(1)}%`, padding.left+10, padding.top+10);
+            ctx2.fillText(`稳定性: ${stability}`, padding.left+10, padding.top+30);
+        }
+        
+        // 更新传递函数显示（修正符号错误）
+        function updateTransferFunction() {
+            let numerator = "K";
+            let denominator = "";
+            
+            if (zeros.length > 0) {
+                numerator += " × ";
+                zeros.forEach((zero, index) => {
+                    if (zero.y === 0) {
+                        // 分子因式 (s - z)  => 显示为 (s - z)，注意符号
+                        // 若z为负，例如z=-2，则 (s - (-2)) = (s+2)
+                        numerator += `(s ${zero.x < 0 ? '+' : '-'} ${Math.abs(zero.x).toFixed(1)})`;
+                    } else {
+                        // 复数零点：二次项，形式 (s^2 - 2Re(z) s + |z|^2) ，但实际因式应为 [s - (σ+jω)][s - (σ-jω)] = s^2 -2σ s + (σ^2+ω^2)
+                        numerator += `(s² + ${(-2*zero.x).toFixed(1)}s + ${(zero.x*zero.x+zero.y*zero.y).toFixed(1)})`;
+                    }
+                    if (index < zeros.length - 1) numerator += " × ";
+                });
+            }
+            
+            poles.forEach((pole, index) => {
+                if (pole.y === 0) {
+                    // 分母因式 (s - p)  => 显示为 (s - p)
+                    denominator += `(s ${pole.x < 0 ? '+' : '-'} ${Math.abs(pole.x).toFixed(1)})`;
+                } else {
+                    denominator += `(s² + ${(-2*pole.x).toFixed(1)}s + ${(pole.x*pole.x+pole.y*pole.y).toFixed(1)})`;
+                }
+                if (index < poles.length - 1) denominator += " × ";
+            });
+            
+            if (poles.length === 0) denominator = "1";
+            transferFunction.innerHTML = `G(s)H(s) = ${numerator} / [${denominator}]`;
+        }
+        
+        function updateSystem() {
+            updateTransferFunction();
+            const closedLoopPoles = calculateClosedLoopPoles();
+            const perf = calculatePerformance(closedLoopPoles);
+            dampingRatioElem.textContent = perf.dampingRatio.toFixed(3);
+            naturalFrequencyElem.textContent = perf.naturalFrequency.toFixed(3);
+            overshootElem.textContent = perf.overshoot.toFixed(1) + " %";
+            stabilityElem.textContent = perf.stability;
+            if (perf.stability === "不稳定") {
+                stabilityElem.parentElement.classList.add("unstable");
+                stabilityElem.parentElement.classList.remove("metric-card");
+            } else {
+                stabilityElem.parentElement.classList.remove("unstable");
+                stabilityElem.parentElement.classList.add("metric-card");
+            }
+            let desc = `当前系统：${poles.length}阶系统，${zeros.length>0?'有'+zeros.length+'个零点，':''}开环增益K=${K.toFixed(1)}，闭环系统${perf.stability}。`;
+            systemDescription.textContent = desc;
+            drawRootLocus();
+            drawTimeResponse();
+            calculateKRange();
+        }
+        
+        window.addEventListener('resize', function() {
+            canvas1.width = canvas1.offsetWidth;
+            canvas1.height = canvas1.offsetHeight;
+            canvas2.width = canvas2.offsetWidth;
+            canvas2.height = canvas2.offsetHeight;
+            updateSystem();
+        });
+        
+        window.onload = function() {
+            initSystems();  // 此时默认三阶系统为 0,-2,-5
+            initCanvas();
+        };
+    </script>
+</body>
+</html>

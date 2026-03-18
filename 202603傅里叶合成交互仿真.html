@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>傅里叶合成交互仿真 · 教学演示</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+        }
+        body {
+            background: #f0f2f5;
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        .sim-card {
+            max-width: 1400px;
+            width: 100%;
+            background: white;
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25);
+            overflow: hidden;
+            padding: 28px 32px;
+            backdrop-filter: blur(2px);
+            border: 1px solid rgba(255,255,255,0.5);
+        }
+        /* 头部 */
+        .header {
+            border-bottom: 2px solid #e6e9f0;
+            padding-bottom: 16px;
+            margin-bottom: 28px;
+        }
+        .header h1 {
+            margin: 0 0 6px 0;
+            font-weight: 600;
+            font-size: 2.1rem;
+            background: linear-gradient(145deg, #1e2b5e, #2c3e8f);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: -0.5px;
+        }
+        .header .formula {
+            font-size: 1.2rem;
+            color: #2c3e50;
+            background: #f8faff;
+            padding: 12px 18px;
+            border-radius: 48px;
+            display: inline-block;
+            font-family: 'Courier New', monospace;
+            font-weight: 500;
+            box-shadow: inset 0 2px 5px rgba(0,0,0,0.02);
+            border: 1px solid #d0d9e8;
+        }
+        .header .formula span {
+            font-weight: 300;
+            color: #4a5b7a;
+        }
+        /* 左右布局 */
+        .split-panel {
+            display: flex;
+            gap: 32px;
+            flex-wrap: wrap;
+        }
+        .left-panel {
+            flex: 1.2;
+            min-width: 380px;
+        }
+        .right-panel {
+            flex: 1.8;
+            min-width: 550px;
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+        }
+        /* 左侧卡片 */
+        .preset-card {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 22px 20px;
+            box-shadow: 0 8px 18px rgba(0,20,40,0.06);
+            border: 1px solid #eef2f7;
+            margin-bottom: 28px;
+        }
+        .preset-title {
+            font-weight: 600;
+            font-size: 1.3rem;
+            color: #1e293b;
+            margin-top: 0;
+            margin-bottom: 18px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .preset-title i {
+            font-size: 1.6rem;
+            color: #3b4e8f;
+        }
+        .button-group {
+            display: flex;
+            gap: 14px;
+            flex-wrap: wrap;
+        }
+        .wave-btn {
+            background: #f0f4fe;
+            border: none;
+            padding: 14px 22px;
+            border-radius: 60px;
+            font-weight: 600;
+            font-size: 1rem;
+            color: #1e2f5a;
+            cursor: pointer;
+            transition: all 0.15s;
+            flex: 1 0 auto;
+            box-shadow: 0 2px 4px rgba(0,20,50,0.08);
+            border: 1px solid transparent;
+        }
+        .wave-btn:hover {
+            background: #e1e9fd;
+            transform: scale(0.98);
+            border-color: #a1b4db;
+        }
+        .wave-btn.reset-btn {
+            background: #f0f0f0;
+            color: #3f3f3f;
+        }
+        .wave-btn.reset-btn:hover {
+            background: #e2e2e2;
+        }
+        /* 谐波调节区域 */
+        .harmonics-section {
+            background: #f9fbfe;
+            border-radius: 24px;
+            padding: 22px 20px;
+            border: 1px solid #e6ecf5;
+        }
+        .harmonics-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            margin-bottom: 20px;
+        }
+        .harmonics-header h3 {
+            margin: 0;
+            font-weight: 600;
+            color: #162b42;
+            font-size: 1.3rem;
+        }
+        .harmonics-header small {
+            color: #5e6f8d;
+            font-weight: 400;
+        }
+        .slider-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px 30px;
+        }
+        .slider-item {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .slider-label {
+            display: flex;
+            justify-content: space-between;
+            font-weight: 500;
+            color: #1e3a5f;
+        }
+        .slider-label span:first-child {
+            background: #d9e2f0;
+            padding: 4px 14px;
+            border-radius: 40px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+        }
+        .slider-label .slider-value {
+            background: white;
+            padding: 4px 12px;
+            border-radius: 40px;
+            border: 1px solid #cbd5e1;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+        }
+        input[type=range] {
+            width: 100%;
+            height: 8px;
+            background: linear-gradient(90deg, #3a5f8b, #819eb9);
+            border-radius: 20px;
+            -webkit-appearance: none;
+            appearance: none;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 4px 8px rgba(0,20,50,0.3);
+            border: 2px solid #1f3a68;
+            cursor: pointer;
+            transition: 0.05s;
+        }
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.15);
+            background: #edf3ff;
+        }
+        /* 右侧画板 */
+        .graph-box {
+            background: #ffffff;
+            border-radius: 24px;
+            padding: 15px 20px 10px 20px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.02);
+            border: 1px solid #eef2f8;
+        }
+        .graph-title {
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #25415d;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .graph-title i {
+            color: #4670a7;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: auto;
+            border-radius: 18px;
+            background: #fefefe;
+            box-shadow: inset 0 2px 6px rgba(0,0,0,0.02), 0 4px 12px rgba(0,10,30,0.08);
+            border: 1px solid #dde3ed;
+        }
+        /* 底部知识点——调整为包含版权行 */
+        .footer-note {
+            margin-top: 36px;
+            padding-top: 20px;
+            border-top: 2px dashed #cbd6e6;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            background: #f7faff;
+            border-radius: 40px;
+            padding: 22px 28px;
+        }
+        .knowledge-item {
+            flex: 1 1 200px;
+            background: #eef3fd;
+            padding: 16px 22px;
+            border-radius: 36px;
+        }
+        .knowledge-item strong {
+            color: #13355e;
+            font-size: 1.1rem;
+            display: block;
+            margin-bottom: 8px;
+        }
+        .knowledge-item p {
+            margin: 4px 0;
+            color: #27496d;
+            font-weight: 400;
+        }
+        /* 新增的版权行样式——融入底部卡片 */
+        .copyright-row {
+            flex: 0 0 100%;
+            text-align: center;
+            border-top: 1px dashed #a7b9d4;
+            padding-top: 18px;
+            margin-top: 6px;
+            color: #274e7c;
+            font-weight: 500;
+            font-size: 0.95rem;
+            letter-spacing: 0.2px;
+        }
+        .badge {
+            background: #203a60;
+            color: white;
+            border-radius: 60px;
+            padding: 2px 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+<div class="sim-card">
+    <!-- 顶部标题与公式 -->
+    <div class="header">
+        <h1>🔷 傅里叶合成交互仿真 · 从谐波看波形</h1>
+        <div class="formula">
+            <span>📐 傅里叶级数 (实形式)</span>  
+            f(t) =  <span style="font-weight:300;">Σ</span> Aₖ·sin(k·ω₀·t + φₖ)   <span style="margin-left:20px;">⚡ 频谱: 幅度 |Fₖ| = Aₖ</span>
+        </div>
+    </div>
+
+    <!-- 主体左右两栏 -->
+    <div class="split-panel">
+        <!-- 左侧：预设卡片 + 谐波调节 -->
+        <div class="left-panel">
+            <!-- 预设波形卡片 -->
+            <div class="preset-card">
+                <div class="preset-title">
+                    <i>🎛️</i> 预设波形
+                </div>
+                <div class="button-group">
+                    <button class="wave-btn" id="presetSine">🔹 基频正弦波</button>
+                    <button class="wave-btn" id="presetSquare">🔲 方波近似 (奇次)</button>
+                    <button class="wave-btn" id="presetSaw">🪚 锯齿波近似 (1/k)</button>
+                    <button class="wave-btn reset-btn" id="presetReset">🧹 清空重置</button>
+                </div>
+            </div>
+
+            <!-- 谐波分量调节 (10个倍频) -->
+            <div class="harmonics-section">
+                <div class="harmonics-header">
+                    <h3>⚙️ 谐波幅度 · 1~10 次</h3>
+                    <small>拖动滑块实时调节</small>
+                </div>
+                <div class="slider-grid" id="sliderGrid">
+                    <!-- 通过JS动态生成10个滑块，保证结构清晰 -->
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：时域波形 + 频谱分布 -->
+        <div class="right-panel">
+            <div class="graph-box">
+                <div class="graph-title"><i>📈</i> 时域波形 (两个周期)</div>
+                <canvas id="timeCanvas" width="700" height="210"></canvas>
+            </div>
+            <div class="graph-box">
+                <div class="graph-title"><i>📊</i> 频谱分布 · 谐波幅度</div>
+                <canvas id="freqCanvas" width="700" height="210"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- 底部知识点解释 + 版权信息 (合并到同一个卡片，保持布局) -->
+    <div class="footer-note">
+        <div class="knowledge-item">
+            <strong>🔍 傅里叶变换思想</strong>
+            <p>任何周期信号（满足狄利克雷条件）可分解为不同频率、幅度的正弦波叠加。这里用1~10次谐波合成演示。</p>
+        </div>
+        <div class="knowledge-item">
+            <strong>🧪 方波 & 锯齿波</strong>
+            <p>方波只含奇次谐波(1,3,5…)，幅度比1/k；锯齿波含所有整数次谐波，幅度比1/k。滑块拖动可观察波形变化。</p>
+        </div>
+        <div class="knowledge-item">
+            <strong>⚡ 实时频谱</strong>
+            <p>右侧柱状图对应各次谐波幅度Aₖ。调节滑块时，时域波形和频谱同步刷新，直观理解傅里叶级数合成。</p>
+        </div>
+        <!-- 版权行：按照要求添加归属说明，位于底部，占整行，视觉统一 -->
+        <div class="copyright-row">
+            © 2026 ChenXixiang2046. All Rights Reserved  | 设计用于教学演示
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // ----- 配置参数 -----
+        const NUM_HARMONICS = 10;          // 1~10次谐波
+        const TIME_CANVAS_ID = 'timeCanvas';
+        const FREQ_CANVAS_ID = 'freqCanvas';
+        const SLIDER_GRID_ID = 'sliderGrid';
+
+        // 存储滑块、数值显示元素的引用
+        const sliders = [];
+        const spanValues = [];
+
+        // 预设振幅数组 (方便直接设置)
+        // ----- 初始化DOM结构：生成10个滑块 -----
+        const grid = document.getElementById(SLIDER_GRID_ID);
+        for (let k = 1; k <= NUM_HARMONICS; k++) {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'slider-item';
+
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'slider-label';
+            const harmName = document.createElement('span');
+            harmName.textContent = `谐波 ${k}`;
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'slider-value';
+            valueSpan.id = `val${k}`;
+            valueSpan.textContent = '0.00';
+            labelDiv.appendChild(harmName);
+            labelDiv.appendChild(valueSpan);
+
+            const input = document.createElement('input');
+            input.type = 'range';
+            input.min = '0';
+            input.max = '1';
+            input.step = '0.01';
+            input.value = '0';
+            input.id = `amp${k}`;
+
+            // 保存到数组方便批量操作
+            sliders[k] = input;          // index从1开始使用，舍弃0
+            spanValues[k] = valueSpan;
+
+            itemDiv.appendChild(labelDiv);
+            itemDiv.appendChild(input);
+            grid.appendChild(itemDiv);
+        }
+
+        // ----- 获取canvas与上下文 -----
+        const timeCanvas = document.getElementById(TIME_CANVAS_ID);
+        const freqCanvas = document.getElementById(FREQ_CANVAS_ID);
+        const ctxTime = timeCanvas.getContext('2d');
+        const ctxFreq = freqCanvas.getContext('2d');
+
+        // 固定尺寸 (用于清晰绘制)
+        timeCanvas.width = 700;
+        timeCanvas.height = 210;
+        freqCanvas.width = 700;
+        freqCanvas.height = 210;
+
+        // ----- 辅助函数：读取当前所有滑块幅度 (长度为10的数组 index0对应1次谐波)-----
+        function getCurrentAmps() {
+            const amps = new Array(NUM_HARMONICS).fill(0);
+            for (let k = 1; k <= NUM_HARMONICS; k++) {
+                const slider = document.getElementById(`amp${k}`);
+                if (slider) amps[k-1] = parseFloat(slider.value) || 0;
+            }
+            return amps;
+        }
+
+        // ----- 更新所有span数值显示 -----
+        function updateSpansFromSliders() {
+            for (let k = 1; k <= NUM_HARMONICS; k++) {
+                const slider = document.getElementById(`amp${k}`);
+                const span = document.getElementById(`val${k}`);
+                if (slider && span) {
+                    span.textContent = parseFloat(slider.value).toFixed(2);
+                }
+            }
+        }
+
+        // ----- 统一重绘：时域 + 频谱 (基于当前滑块) -----
+        function redrawAll() {
+            const amps = getCurrentAmps();
+            drawTimeDomain(amps);
+            drawFrequencyDomain(amps);
+        }
+
+        // ----- 绘制时域波形 (两个周期，使用sin(k*t)叠加) -----
+        function drawTimeDomain(amps) {
+            ctxTime.clearRect(0, 0, timeCanvas.width, timeCanvas.height);
+            // 背景辅助
+            ctxTime.fillStyle = '#ffffff';
+            ctxTime.fillRect(0, 0, timeCanvas.width, timeCanvas.height);
+
+            // 绘制浅网格
+            ctxTime.beginPath();
+            ctxTime.strokeStyle = '#e9ecf3';
+            ctxTime.lineWidth = 0.6;
+            for (let i = 0; i <= 4; i++) {
+                let y = 30 + i * 40;
+                ctxTime.beginPath();
+                ctxTime.moveTo(40, y);
+                ctxTime.lineTo(timeCanvas.width-40, y);
+                ctxTime.strokeStyle = '#dfe6f0';
+                ctxTime.stroke();
+            }
+            for (let i = 0; i <= 5; i++) {
+                let x = 40 + i * ((timeCanvas.width-80)/5);
+                ctxTime.beginPath();
+                ctxTime.moveTo(x, 20);
+                ctxTime.lineTo(x, timeCanvas.height-20);
+                ctxTime.strokeStyle = '#dfe6f0';
+                ctxTime.stroke();
+            }
+
+            // 采样点数
+            const N = 600;
+            const T = 2 * Math.PI; // 基频周期 (频率1 rad/s)
+            const totalRange = 4 * Math.PI; // 两个周期
+            const step = totalRange / (N-1);
+            const values = [];
+
+            // 计算叠加信号
+            for (let i = 0; i < N; i++) {
+                let t = i * step;
+                let sum = 0;
+                for (let k = 1; k <= NUM_HARMONICS; k++) {
+                    let amp = amps[k-1];
+                    if (amp !== 0) {
+                        sum += amp * Math.sin(k * t);  // 正弦叠加，相位为0
+                    }
+                }
+                values.push(sum);
+            }
+
+            // 找到最大绝对值用于归一化
+            let maxAbs = 0.0001;
+            for (let v of values) {
+                if (Math.abs(v) > maxAbs) maxAbs = Math.abs(v);
+            }
+
+            // 映射到画布 (y: 上负下正? 常规上面正，但一般sin图像向上为正，所以翻转使正向向上)
+            // 坐标: canvas y=0 是顶部, 我们让 y = height/2 - (value / maxAbs) * (height*0.35)
+            const midY = timeCanvas.height / 2;
+            const scale = (timeCanvas.height * 0.35) / maxAbs;  // 留边避免贴顶
+
+            ctxTime.beginPath();
+            ctxTime.strokeStyle = '#1f4a9c';
+            ctxTime.lineWidth = 2.8;
+            ctxTime.lineJoin = 'round';
+            ctxTime.lineCap = 'round';
+
+            for (let i = 0; i < N; i++) {
+                let x = 40 + (i / (N-1)) * (timeCanvas.width - 80);
+                let y = midY - values[i] * scale;  // 减使正向上
+                if (i === 0) ctxTime.moveTo(x, y);
+                else ctxTime.lineTo(x, y);
+            }
+            ctxTime.stroke();
+
+            // 绘制零线
+            ctxTime.beginPath();
+            ctxTime.strokeStyle = '#bdc7db';
+            ctxTime.lineWidth = 1.5;
+            ctxTime.setLineDash([5, 3]);
+            ctxTime.moveTo(40, midY);
+            ctxTime.lineTo(timeCanvas.width-40, midY);
+            ctxTime.stroke();
+            ctxTime.setLineDash([]); // 恢复实线
+
+            // 轴标签
+            ctxTime.font = '500 11px "Segoe UI", monospace';
+            ctxTime.fillStyle = '#2c405c';
+            ctxTime.fillText('0', 28, midY-6);
+            ctxTime.fillText('2π', timeCanvas.width-50, midY-12);
+            ctxTime.fillText('t', timeCanvas.width-25, 30);
+        }
+
+        // ----- 绘制频谱柱状图 (1~10次幅度) -----
+        function drawFrequencyDomain(amps) {
+            ctxFreq.clearRect(0, 0, freqCanvas.width, freqCanvas.height);
+            ctxFreq.fillStyle = '#ffffff';
+            ctxFreq.fillRect(0, 0, freqCanvas.width, freqCanvas.height);
+
+            const leftMargin = 50;
+            const rightMargin = 40;
+            const topMargin = 25;
+            const bottomMargin = 35;
+            const chartWidth = freqCanvas.width - leftMargin - rightMargin;
+            const barWidth = chartWidth / (NUM_HARMONICS * 1.8);  // 留间隔
+            const gap = barWidth * 0.5;
+
+            // 绘制网格线 (幅度参考)
+            ctxFreq.beginPath();
+            ctxFreq.strokeStyle = '#dde3ed';
+            ctxFreq.lineWidth = 0.8;
+            for (let i = 0; i <= 5; i++) {
+                let y = topMargin + (i/5) * (freqCanvas.height - topMargin - bottomMargin);
+                ctxFreq.moveTo(leftMargin-5, y);
+                ctxFreq.lineTo(freqCanvas.width-rightMargin+5, y);
+                ctxFreq.strokeStyle = '#dee5f0';
+                ctxFreq.stroke();
+            }
+
+            // 绘制每个柱
+            const maxAmp = 1.0;  // 滑块最大为1
+            for (let k = 0; k < NUM_HARMONICS; k++) {
+                const x = leftMargin + k * (barWidth + gap) + barWidth/2;
+                const amp = amps[k];
+                const barHeight = (amp / maxAmp) * (freqCanvas.height - topMargin - bottomMargin);
+                const yBar = freqCanvas.height - bottomMargin - barHeight;
+
+                // 柱体
+                ctxFreq.fillStyle = '#4280b0';
+                ctxFreq.shadowColor = '#a0b6d4';
+                ctxFreq.shadowBlur = 6;
+                ctxFreq.fillRect(x - barWidth/2, yBar, barWidth, barHeight);
+                ctxFreq.shadowColor = 'transparent';
+                // 边框
+                ctxFreq.strokeStyle = '#1f3a60';
+                ctxFreq.lineWidth = 1.2;
+                ctxFreq.strokeRect(x - barWidth/2, yBar, barWidth, barHeight);
+
+                // 标注谐波次数
+                ctxFreq.font = 'bold 11px "Segoe UI"';
+                ctxFreq.fillStyle = '#102331';
+                ctxFreq.fillText(k+1, x-5, freqCanvas.height - bottomMargin + 18);
+
+                // 顶部数值
+                if (amp > 0.01) {
+                    ctxFreq.font = 'bold 10px "Courier New"';
+                    ctxFreq.fillStyle = '#124078';
+                    ctxFreq.fillText(amp.toFixed(2), x-15, yBar-6);
+                }
+            }
+
+            // 轴标签
+            ctxFreq.font = 'bold 12px "Segoe UI"';
+            ctxFreq.fillStyle = '#17355a';
+            ctxFreq.fillText('谐波次数', freqCanvas.width-130, freqCanvas.height-12);
+            ctxFreq.fillText('幅度', 12, 40);
+        }
+
+        // ----- 滑块事件绑定：更新数值 + 重绘 -----
+        for (let k = 1; k <= NUM_HARMONICS; k++) {
+            const slider = document.getElementById(`amp${k}`);
+            slider.addEventListener('input', function() {
+                // 更新对应的span
+                const span = document.getElementById(`val${k}`);
+                span.textContent = parseFloat(this.value).toFixed(2);
+                redrawAll();
+            });
+        }
+
+        // ----- 预设波形功能 -----
+        function setPreset(ampsArray) {
+            // ampsArray长度应为10 (1~10次)
+            for (let i = 1; i <= NUM_HARMONICS; i++) {
+                const slider = document.getElementById(`amp${i}`);
+                if (slider) {
+                    slider.value = ampsArray[i-1];
+                }
+            }
+            // 更新span + 重绘
+            updateSpansFromSliders();
+            redrawAll();
+        }
+
+        // 基频正弦波: 只有基次为1，其余0
+        document.getElementById('presetSine').addEventListener('click', () => {
+            const preset = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+            setPreset(preset);
+        });
+
+        // 方波近似 (奇次谐波 1/k)
+        document.getElementById('presetSquare').addEventListener('click', () => {
+            const preset = [];
+            for (let k = 1; k <= 10; k++) {
+                preset.push( (k % 2 === 1) ? (1 / k) : 0 );
+            }
+            setPreset(preset);
+        });
+
+        // 锯齿波近似 (所有谐波 1/k)
+        document.getElementById('presetSaw').addEventListener('click', () => {
+            const preset = [1, 1/2, 1/3, 1/4, 1/5, 1/6, 1/7, 1/8, 1/9, 1/10];
+            setPreset(preset);
+        });
+
+        // 清空重置: 全0
+        document.getElementById('presetReset').addEventListener('click', () => {
+            const preset = new Array(10).fill(0);
+            setPreset(preset);
+        });
+
+        // ----- 初始化: 默认设置基频正弦波 (让用户看到基础) -----
+        window.addEventListener('load', () => {
+            // 先全部置零，再调用正弦预设显得干净
+            for (let k = 1; k <= NUM_HARMONICS; k++) {
+                document.getElementById(`amp${k}`).value = 0;
+            }
+            // 调用基频正弦
+            document.getElementById('presetSine').click();
+        });
+
+        // 确保画板在调整大小时不拉伸失真 (已经固定宽高)
+        // 补充resize不用处理
+    })();
+</script>
+</body>
+</html>

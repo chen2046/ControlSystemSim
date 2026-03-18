@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>稳定性分析（劳斯判据）交互仿真</title>
+    <!-- numeric 用于求根 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+    <!-- Font Awesome 图标 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        /* ========== 基础样式 (保持原有并添加头部/底部) ========== */
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', 'Segoe UI', system-ui, sans-serif; }
+        body { background: #e9ecf3; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 12px; }
+        
+        /* 主容器：现在作为普通块容器，内部包含头部、网格包装器、底部 */
+        .main-container {
+            max-width: 1600px; width: 100%; background: #ffffff; border-radius: 28px; 
+            box-shadow: 0 20px 40px rgba(0,20,40,0.2); padding: 18px; 
+            backdrop-filter: blur(2px);
+            display: flex; flex-direction: column; gap: 16px;
+        }
+
+        /* 新增头部样式 (与之前仿真风格统一) */
+        .app-header {
+            background: linear-gradient(145deg, #f0f5ff, #ffffff);
+            border-radius: 30px;
+            padding: 16px 28px;
+            border: 1px solid rgba(30, 58, 95, 0.1);
+            box-shadow: 0 6px 14px rgba(0,20,40,0.05);
+        }
+        .app-header h1 {
+            font-size: 1.9rem;
+            font-weight: 600;
+            color: #1e2f4d;
+            letter-spacing: -0.5px;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .app-header h1 i {
+            color: #2e5a8b;
+            font-size: 2rem;
+        }
+        .app-header .sub {
+            font-size: 1rem;
+            font-weight: 400;
+            color: #4a5f7c;
+            margin-left: 16px;
+        }
+
+        /* 网格包装器：应用原来的三列网格布局 */
+        .grid-wrapper {
+            display: grid;
+            grid-template-columns: 280px 1fr 260px;
+            gap: 14px;
+        }
+
+        /* 底部版权样式 */
+        .app-footer {
+            background: #f0f5fe;
+            border-radius: 40px;
+            padding: 14px 24px;
+            text-align: center;
+            color: #27496d;
+            font-weight: 500;
+            font-size: 0.95rem;
+            border: 1px solid #d2deed;
+            box-shadow: inset 0 1px 4px #e0e9f5;
+            margin-top: 8px;
+        }
+        .app-footer i {
+            color: #1e3a5f;
+            margin: 0 6px;
+        }
+
+        /* 以下完全保留原有样式 (未作修改，确保界面不变) */
+        .control-panel { background: #f8fafd; border-radius: 22px; padding: 16px 12px; box-shadow: inset 0 1px 4px #d0daea; }
+        .panel-title { font-weight: 600; font-size: 1rem; color: #1a2b44; margin-bottom: 16px; display: flex; align-items: center; gap: 6px; border-bottom: 2px solid #d2dcec; padding-bottom: 10px; }
+        .order-selector { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+        .order-selector label { font-weight: 500; color: #2c3e50; font-size: 0.9rem; }
+        .order-selector select { padding: 6px 14px; border-radius: 40px; border: 1px solid #b7c5da; background: white; font-weight: 500; font-size: 0.9rem; }
+        .sliders-area { margin-bottom: 20px; max-height: 380px; overflow-y: auto; padding-right: 4px; scrollbar-width: thin; }
+        .coeff-item { margin-bottom: 14px; background: white; padding: 8px 8px 12px; border-radius: 18px; box-shadow: 0 2px 6px #dde3ef; }
+        .coeff-label { display: flex; justify-content: space-between; font-size: 0.85rem; font-weight: 500; color: #2c3e50; margin-bottom: 4px; }
+        .coeff-label span:first-child { font-family: 'Courier New', monospace; background: #eef2f8; padding: 4px 10px; border-radius: 30px; }
+        .coeff-label input[type=number] { width: 65px; text-align: center; border: 1px solid #c8d4e8; border-radius: 30px; padding: 4px; font-weight: 600; }
+        input[type=range] { width: 100%; margin: 6px 0 2px; height: 6px; background: linear-gradient(to right, #2e86c1, #e74c3c); border-radius: 10px; -webkit-appearance: none; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; background: white; border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,0.3); border: 2px solid #1f3a5f; cursor: grab; }
+        .preset-bar { display: flex; gap: 6px; flex-wrap: wrap; margin: 16px 0; }
+        .preset-btn { background: white; border: 1px solid #c6d3e9; border-radius: 40px; padding: 6px 12px; font-size: 0.75rem; font-weight: 500; color: #1f3a5f; cursor: pointer; transition: 0.15s; box-shadow: 0 2px 4px #e2e8f2; }
+        .preset-btn:hover { background: #dbe4f0; border-color: #8fa6c9; }
+        .preset-btn i { margin-right: 4px; font-size: 0.7rem; }
+        .reset-btn { background: #eef2f8; width: 100%; padding: 10px; border: none; border-radius: 40px; font-weight: 600; color: #1e3a5f; margin-top: 8px; cursor: pointer; font-size: 0.9rem; }
+        .reset-btn i { margin-right: 6px; }
+        .central-panel { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+        .routh-wrapper { background: white; border-radius: 22px; padding: 14px; box-shadow: 0 8px 18px #d2d9e9; overflow-x: auto; }
+        .routh-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .routh-header h4 { font-weight: 600; color: #142b44; font-size: 1rem; }
+        .formula-hint { background: #ecf2fa; border-radius: 30px; padding: 6px 14px; font-size: 0.75rem; color: #014581; font-family: 'Courier New', monospace; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; min-width: 500px; }
+        th { background: #1e3a5f; color: white; font-weight: 500; padding: 8px 6px; border-radius: 16px 16px 0 0; position: sticky; top: 0; }
+        td { padding: 8px 6px; text-align: center; border-bottom: 1px solid #d9e2f0; background-color: white; }
+        .first-col { font-weight: 700; background-color: #f0f5ff; border-left: 3px solid #2e6da5; }
+        .sign-positive { background: linear-gradient(145deg, #d4edda, #c0e3c8); color: #0f4d1a; }
+        .sign-negative { background: linear-gradient(145deg, #f8d7da, #f5c2c7); color: #921c2c; }
+        .zero-warning { background-color: #fff3cd; position: relative; cursor: help; }
+        .zero-warning::after { content: "⚠️"; margin-left: 5px; font-size: 0.7rem; }
+        .special-row { background: #e9eef5; font-style: italic; }
+        .root-canvas-container { background: white; border-radius: 22px; padding: 14px; box-shadow: 0 8px 18px #d2d9e9; }
+        canvas { width: 100%; height: 170px; background: #ffffff; border-radius: 18px; border: 1px solid #d2deed; display: block; }
+        .info-panel { background: #f8fafd; border-radius: 22px; padding: 16px 12px; display: flex; flex-direction: column; gap: 16px; }
+        .stability-card { background: white; border-radius: 20px; padding: 14px; box-shadow: 0 6px 12px #dde3f0; }
+        .stability-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+        .stability-icon { font-size: 2rem; }
+        .stability-text { font-size: 1.5rem; font-weight: 700; }
+        .stable-color { color: #1e8449; }
+        .unstable-color { color: #b03a2e; }
+        .critical-color { color: #b9770e; }
+        .temp-meter { background: #eef3f9; border-radius: 30px; height: 24px; width: 100%; overflow: hidden; margin: 12px 0 6px; }
+        .meter-fill { height: 100%; width: 0%; background: linear-gradient(90deg, #28b463, #e67e22, #c0392b); transition: width 0.2s; }
+        .stats-list { background: white; border-radius: 20px; padding: 14px; }
+        .stat-item { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: 0.9rem; border-bottom: 1px dashed #d0dcee; padding-bottom: 4px; }
+        .badge { background: #1e3a5f; color: white; padding: 4px 12px; border-radius: 40px; font-size: 0.7rem; }
+        .theory-tip { background: #e3edfe; border-radius: 18px; padding: 12px; font-size: 0.8rem; color: #014581; border-left: 4px solid #2e86c1; }
+        .footnote { text-align: center; margin-top: 10px; color: #7a8b9f; font-size: 0.7rem; }
+        .fa-arrow-up { color: #28a745; }
+        .fa-arrow-down { color: #dc3545; }
+        .k-highlight { background: #fff1d6; border-radius: 12px; padding: 4px 8px; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="main-container" id="app">
+    <!-- ===== 新增顶部标题 ===== -->
+    <div class="app-header">
+        <h1>
+            <i class="fas fa-chart-pie"></i> 稳定性分析（劳斯判据）交互仿真
+            <span class="sub"><i class="fas fa-arrows-alt-h"></i> 劳斯表 · 临界K · 全零行处理</span>
+        </h1>
+    </div>
+
+    <!-- 将原有的三个面板包裹在grid-wrapper中，保持三列布局 -->
+    <div class="grid-wrapper">
+        <!-- 左侧控制区 (原封不动) -->
+        <div class="control-panel">
+            <div class="panel-title"><i class="fas fa-sliders-h" style="color:#2e5a8b;"></i> 系数调节器 (范围 -20~20)</div>
+            <div class="order-selector">
+                <label><i class="fas fa-layer-group"></i> 阶数</label>
+                <select id="orderSelect" v-model="order" @change="rebuildSliders">
+                    <option value="2">2 阶</option>
+                    <option value="3">3 阶</option>
+                    <option value="4">4 阶</option>
+                    <option value="5">5 阶</option>
+                </select>
+            </div>
+            <div class="sliders-area" id="slidersContainer">
+                <!-- 动态渲染 -->
+            </div>
+            <div class="preset-bar">
+                <span class="preset-btn" @click="loadPreset('stable2')"><i class="fas fa-check"></i> 二阶稳定</span>
+                <span class="preset-btn" @click="loadPreset('unstable3')"><i class="fas fa-times"></i> 三阶不稳</span>
+                <span class="preset-btn" @click="loadPreset('criticalK80')"><i class="fas fa-dragon"></i> 临界K=80</span>
+                <span class="preset-btn" @click="loadPreset('zeroRowCorrect')"><i class="fas fa-exclamation-triangle"></i> 全零行例(正确)</span>
+                <span class="preset-btn" @click="loadPreset('Ksystem')"><i class="fas fa-sliders-h"></i> K系统 (s⁴+8s³+24s²+32s+K)</span>
+            </div>
+            <button class="reset-btn" @click="resetCoeffs"><i class="fas fa-undo-alt"></i> 重置系数 (全1正向)</button>
+        </div>
+
+        <!-- 中央显示区 (原封不动) -->
+        <div class="central-panel">
+            <div class="routh-wrapper">
+                <div class="routh-header">
+                    <h4><i class="fas fa-table"></i> 劳斯表 (转置·第一列为s幂次·悬停看公式)</h4>
+                    <span class="formula-hint"><i class="fas fa-calculator"></i> 通式: b = (a₁·c₂ − a₂·c₁)/a₁</span>
+                </div>
+                <div id="routhTableContainer">
+                    <table id="routhTable">
+                        <!-- JS填充 -->
+                    </table>
+                </div>
+            </div>
+            <div class="root-canvas-container">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                    <span><i class="fas fa-chart-line"></i> 极点分布 (蓝:左半面; 红:右半面; 黄:虚轴)</span>
+                    <span class="badge" id="rootCount"></span>
+                </div>
+                <canvas id="rootCanvas" width="600" height="170"></canvas>
+            </div>
+        </div>
+
+        <!-- 右侧信息区 (原封不动) -->
+        <div class="info-panel">
+            <div class="stability-card">
+                <div class="stability-row">
+                    <span class="stability-icon" id="stabilityIcon">⚖️</span>
+                    <span>
+                        <div style="color:#3a546d; font-size:0.8rem;">稳定性结论</div>
+                        <span id="stabilityText" class="stability-text stable-color">稳定</span>
+                    </span>
+                </div>
+                <div class="temp-meter" id="tempMeter">
+                    <div class="meter-fill" id="meterFill" style="width:0%"></div>
+                </div>
+                <div style="margin-top: 8px; display: flex; justify-content: space-between;">
+                    <span>右半平面极点数: <strong id="rhpCount">0</strong></span>
+                    <span id="kValueDisplay" class="k-highlight"></span>
+                </div>
+                <div style="margin-top: 6px; font-size:0.85rem;" id="criticalKDisplay"></div>
+            </div>
+            <div class="stats-list">
+                <div class="stat-item"><span>符号变化次数</span> <span id="signChanges">0</span></div>
+                <div class="stat-item"><span>第一列数值</span> <span id="firstColVals">—</span></div>
+                <div class="stat-item"><span>特殊行标记</span> <span id="specialFlag">无</span></div>
+            </div>
+            <div class="theory-tip" id="theoryMessage">
+                <i class="fas fa-lightbulb"></i> 劳斯判据：第一列符号变化次数 = 右半平面根个数
+            </div>
+            <div style="font-size:0.75rem; background:white; border-radius:16px; padding:10px; color:#1e3a5f;">
+                <i class="fas fa-info-circle"></i> 全零行时构造辅助多项式求导后继续。首列零用ε=1e-6近似。
+            </div>
+        </div>
+    </div> <!-- 结束 .grid-wrapper -->
+
+    <!-- ===== 新增底部版权信息 ===== -->
+    <div class="app-footer">
+        <i class="far fa-copyright"></i> 2026 ChenXixiang2046. All Rights Reserved  |  设计用于教学演示
+        <span style="margin-left: 12px;"><i class="fas fa-flask"></i> 劳斯判据 · 极点分析</span>
+    </div>
+</div>
+
+<!-- 原有Vue及脚本 (完全保留，未作任何功能修改) -->
+<script src="https://cdn.jsdelivr.net/npm/vue@2/dist/vue.js"></script>
+<script>
+(function() {
+    // ==================== 核心劳斯表生成（修正计算系数符号，正确处理全零行）====================
+    function buildRouthTable(coeffs) {
+        const n = coeffs.length - 1;
+        if (Math.abs(coeffs[0]) < 1e-12) return { error: '最高次系数不能为零' };
+        const eps = 1e-6;   // 用于首列零的近似
+        
+        // 初始化前两行（补齐至相同长度）
+        let row1 = [], row2 = [];
+        for (let i = 0; i <= n; i+=2) row1.push(coeffs[i]);
+        for (let i = 1; i <= n; i+=2) row2.push(coeffs[i]);
+        const maxLen = Math.max(row1.length, row2.length);
+        while (row1.length < maxLen) row1.push(0);
+        while (row2.length < maxLen) row2.push(0);
+        let table = [row1.slice(), row2.slice()];
+        
+        let special = { type: '', rowIndex: -1, auxPoly: [] };
+        
+        for (let r = 2; r <= n; r++) {
+            let prev = table[r-1];
+            let prevPrev = table[r-2];
+            
+            // 检查全零行
+            let allZero = prev.every(val => Math.abs(val) < 1e-10);
+            if (allZero) {
+                // 用上一行（prevPrev）构造辅助多项式
+                let k = n - (r-1);  // 上一行对应的指数 s^k
+                let p = new Array(k+1).fill(0);
+                for (let i = 0; i < prevPrev.length; i++) {
+                    let exp = k - 2*i;
+                    if (exp >= 0) p[exp] = prevPrev[i];
+                }
+                // 求导 dP/ds -> Q(s) 系数 (阶数 k-1)
+                let q = [];
+                for (let e = k; e >= 1; e--) {
+                    q.push(p[e] * e);
+                }
+                // Q(s) 系数从高到低，取偶次项构成新行
+                let newRow = [];
+                for (let i = 0; i < q.length; i+=2) {
+                    newRow.push(q[i] || 0);
+                }
+                // 补齐长度与上一行相同
+                while (newRow.length < prev.length) newRow.push(0);
+                table.push(newRow);
+                special = { type: 'fullZero', rowIndex: r, auxPoly: p.slice() };
+                continue;
+            }
+            
+            // 正常计算
+            let first = prev[0];
+            let firstZero = false;
+            if (Math.abs(first) < 1e-10) {
+                first = eps;
+                firstZero = true;
+                special = { type: 'firstZero', rowIndex: r };
+            }
+            let newRow = [];
+            // 正确公式：分子 = prev[0]*prevPrev[j] - prev[j]*prevPrev[0]
+            for (let j = 1; j < prev.length; j++) {
+                let val = (prev[0] * prevPrev[j] - prev[j] * prevPrev[0]) / first;
+                newRow.push(val);
+            }
+            // 补齐长度与上一行相同
+            while (newRow.length < prev.length) newRow.push(0);
+            table.push(newRow);
+        }
+        // 截取至 n+1 行 (s^n 到 s^0)
+        table = table.slice(0, n+1);
+        return { table, special };
+    }
+
+    // 提取第一列
+    function firstCol(table) {
+        return table.map(row => row[0]);
+    }
+
+    // 符号变化次数
+    function signChanges(col) {
+        let cnt = 0;
+        for (let i=1; i<col.length; i++) {
+            if (col[i-1] * col[i] < 0) cnt++;
+        }
+        return cnt;
+    }
+
+    // 求根 (友矩阵法)
+    function findRoots(coeffs) {
+        if (coeffs[0] === 0) return [];
+        const n = coeffs.length - 1;
+        let A = numeric.rep([n, n], 0);
+        for (let i=0; i<n; i++) {
+            if (i < n-1) A[i][i+1] = 1;
+            A[n-1][i] = -coeffs[n-i] / coeffs[0];
+        }
+        try {
+            let eig = numeric.eig(A);
+            let roots = [];
+            for (let i=0; i<eig.lambda.x.length; i++) {
+                roots.push({ re: eig.lambda.x[i], im: eig.lambda.y[i] });
+            }
+            return roots;
+        } catch (e) {
+            return [];
+        }
+    }
+
+    // Vue 实例
+    new Vue({
+        el: '#app',
+        data: {
+            order: 3,
+            coeffs: [1, 2, 3, 4],
+            epsilonUsed: false
+        },
+        mounted() {
+            this.rebuildSliders();
+            this.updateAll();
+        },
+        watch: {
+            coeffs: { handler() { this.updateAll(); }, deep: true }
+        },
+        methods: {
+            rebuildSliders() {
+                let n = parseInt(this.order);
+                let newCoeffs = new Array(n+1).fill(1);
+                for (let i=0; i<=n; i++) {
+                    if (i < this.coeffs.length) newCoeffs[i] = this.coeffs[i];
+                }
+                this.coeffs = newCoeffs;
+                this.$nextTick(() => { this.renderSliders(); });
+            },
+            renderSliders() {
+                let container = document.getElementById('slidersContainer');
+                let n = this.order;
+                let html = '';
+                for (let i=0; i<=n; i++) {
+                    let exp = n - i;
+                    let coefName = (i===0) ? 'a₀' : (i===1) ? 'a₁' : (i===2) ? 'a₂' : (i===3) ? 'a₃' : (i===4) ? 'a₄' : 'a₅';
+                    let val = this.coeffs[i] !== undefined ? this.coeffs[i] : 1;
+                    html += `
+                        <div class="coeff-item">
+                            <div class="coeff-label">
+                                <span>${coefName} · s<sup>${exp}</sup></span>
+                                <input type="number" step="0.1" min="-20" max="20" value="${val}" id="coeff_${i}" @input="updateCoeff(${i}, $event.target.value)">
+                            </div>
+                            <input type="range" min="-20" max="20" step="0.1" value="${val}" id="slider_${i}" @input="updateCoeffFromSlider(${i}, $event.target.value)">
+                        </div>
+                    `;
+                }
+                container.innerHTML = html;
+                for (let i=0; i<=n; i++) {
+                    let slider = document.getElementById(`slider_${i}`);
+                    let num = document.getElementById(`coeff_${i}`);
+                    if (slider) {
+                        slider.addEventListener('input', (e) => { this.updateCoeff(i, e.target.value); });
+                    }
+                    if (num) {
+                        num.addEventListener('input', (e) => { this.updateCoeff(i, e.target.value); });
+                    }
+                }
+            },
+            updateCoeff(index, value) {
+                let v = parseFloat(value) || 0;
+                this.$set(this.coeffs, index, v);
+                let slider = document.getElementById(`slider_${index}`);
+                let num = document.getElementById(`coeff_${index}`);
+                if (slider) slider.value = v;
+                if (num) num.value = v.toFixed(1);
+            },
+            updateCoeffFromSlider(index, val) { this.updateCoeff(index, val); },
+            loadPreset(type) {
+                if (type === 'stable2') { this.order=2; this.coeffs=[1, 3, 2]; }
+                else if (type === 'unstable3') { this.order=3; this.coeffs=[1, 2, 3, -4]; }
+                else if (type === 'criticalK80') { this.order=4; this.coeffs=[1, 8, 24, 32, 80]; }  // 临界K=80
+                else if (type === 'zeroRowCorrect') { this.order=4; this.coeffs=[1, 5, 7, 5, 6]; } // 正确全零行示例
+                else if (type === 'Ksystem') { this.order=4; this.coeffs=[1, 8, 24, 32, 0]; }  // K=0
+                this.rebuildSliders();
+            },
+            resetCoeffs() {
+                let n = this.order;
+                let arr = new Array(n+1).fill(1);
+                if (n>=2) arr[1]=2;
+                this.coeffs = arr;
+                this.rebuildSliders();
+            },
+            updateAll() {
+                let coeffs = this.coeffs.slice();
+                if (coeffs[0] === 0) {
+                    document.getElementById('routhTable').innerHTML = '<tr><td colspan="4" style="color:red;">错误: 最高次系数不能为零</td></tr>';
+                    return;
+                }
+                let result = buildRouthTable(coeffs);
+                if (result.error) {
+                    document.getElementById('routhTable').innerHTML = `<tr><td colspan="4">${result.error}</td></tr>`;
+                    return;
+                }
+                let table = result.table;
+                let special = result.special;
+                // 渲染表格（转置形式：第一列为s幂次，后面为系数，并添加悬浮公式）
+                this.renderRouthTableTransposed(table, special, coeffs.length-1);
+                
+                let first = firstCol(table);
+                let changes = signChanges(first);
+                document.getElementById('signChanges').innerText = changes;
+                document.getElementById('firstColVals').innerText = first.map(v=>v.toFixed(2)).join(', ');
+                
+                // 极点计算
+                let roots = findRoots(coeffs);
+                let rhp = roots.filter(r => r.re > 1e-8).length;
+                let onAxis = roots.filter(r => Math.abs(r.re) <= 1e-8).length;
+                document.getElementById('rhpCount').innerText = rhp;
+                document.getElementById('rootCount').innerText = `共 ${roots.length} 个极点 · RHP ${rhp}`;
+                
+                // 稳定性结论
+                let icon = document.getElementById('stabilityIcon');
+                let text = document.getElementById('stabilityText');
+                if (rhp === 0 && onAxis === 0) {
+                    icon.innerText = '✅'; text.innerText = '稳定'; text.className = 'stability-text stable-color';
+                } else if (rhp > 0) {
+                    icon.innerText = '❌'; text.innerText = '不稳定'; text.className = 'stability-text unstable-color';
+                } else {
+                    icon.innerText = '⚠️'; text.innerText = '临界稳定'; text.className = 'stability-text critical-color';
+                }
+                
+                // 温度计
+                let maxRhp = coeffs.length-1;
+                let pct = (rhp / maxRhp) * 100;
+                document.getElementById('meterFill').style.width = pct + '%';
+                
+                // 理论提示 + 特殊标记
+                let msg = '';
+                if (special.type === 'firstZero') msg = '⚠️ 首列出现零，用ε=1e-6近似。';
+                else if (special.type === 'fullZero') msg = '⚠️ 出现全零行，构造辅助多项式并求导后继续。';
+                else msg = '劳斯判据：第一列符号变化次数 = 右半平面根个数';
+                document.getElementById('theoryMessage').innerHTML = `<i class="fas fa-lightbulb"></i> ${msg}`;
+                document.getElementById('specialFlag').innerText = special.type ? special.type : '无';
+                
+                // 显示当前K值及临界K（针对K系统）
+                const isKsystem = (this.order == 4 && Math.abs(coeffs[0]-1)<0.1 && Math.abs(coeffs[1]-8)<0.1 && Math.abs(coeffs[2]-24)<0.1 && Math.abs(coeffs[3]-32)<0.1);
+                if (isKsystem) {
+                    let K = coeffs[4];
+                    document.getElementById('kValueDisplay').innerText = `K = ${K.toFixed(2)}`;
+                    // 临界K = 80
+                    let criticalK = 80;
+                    let comparison = K < criticalK ? '&lt;' : (K > criticalK ? '&gt;' : '=');
+                    document.getElementById('criticalKDisplay').innerHTML = `临界K = ${criticalK}<br>当前K ${comparison} 临界，系统${K<criticalK?'稳定':(K===criticalK?'临界':'不稳定')}`;
+                } else {
+                    document.getElementById('kValueDisplay').innerText = '';
+                    document.getElementById('criticalKDisplay').innerHTML = '';
+                }
+                
+                // 绘制根
+                this.drawRoots(roots);
+            },
+            // 转置渲染函数：第一列为s幂次，后面为系数，每个单元格添加title显示计算公式
+            renderRouthTableTransposed(table, special, n) {
+                if (!table || table.length === 0) return;
+                // 计算最大列数（所有行的最大长度）
+                let maxCols = Math.max(...table.map(row => row.length));
+                // 生成表头：第一列为 s^k，后面为 系数1, 系数2, ...
+                let html = '<thead><tr><th>s^k</th>';
+                for (let c=0; c<maxCols; c++) {
+                    html += `<th>系数 ${c+1}</th>`;
+                }
+                html += '</tr></thead><tbody>';
+                
+                // 生成每一行：第一列是 s^(n-r) (r从0到n)
+                for (let r=0; r<table.length; r++) {
+                    let row = table[r];
+                    let firstVal = row[0];
+                    let rowLabel = `s<sup>${n - r}</sup>`;
+                    // 第一列样式
+                    let cls = 'first-col';
+                    if (Math.abs(firstVal) < 1e-8 && special.type==='firstZero' && r>=2) cls += ' zero-warning';
+                    else if (firstVal > 0) cls += ' sign-positive';
+                    else if (firstVal < 0) cls += ' sign-negative';
+                    
+                    html += '<tr>';
+                    // 第一列：幂次标签
+                    html += `<td class="${cls}">${rowLabel}`;
+                    // 添加箭头（如果与前一行的第一列比较）
+                    if (r>0) {
+                        let prevFirst = table[r-1][0];
+                        if (prevFirst * firstVal < 0) html += ` <i class="fas fa-arrow-down" style="color:#b03a2e;"></i>`;
+                        else if (prevFirst > 0 && firstVal > 0) html += ` <i class="fas fa-arrow-up" style="color:#1e8449;"></i>`;
+                    }
+                    html += '</td>';
+                    
+                    // 后续列：系数值，并添加悬浮公式
+                    for (let c=0; c<maxCols; c++) {
+                        let val = (c < row.length) ? row[c] : 0;
+                        let valStr = val.toFixed(2);
+                        // 生成title属性（计算公式）
+                        let titleStr = '';
+                        if (r === 0) {
+                            titleStr = '初始系数 (sⁿ行)';
+                        } else if (r === 1) {
+                            titleStr = '初始系数 (sⁿ⁻¹行)';
+                        } else {
+                            // 正常计算行：需要前两行数据
+                            let prevRow = table[r-1];
+                            let prevPrevRow = table[r-2];
+                            // 检查当前行是否由全零行特殊处理？
+                            if (special.type === 'fullZero' && r === special.rowIndex) {
+                                titleStr = '全零行，由辅助多项式求导得到';
+                            } else if (special.type === 'fullZero' && r > special.rowIndex) {
+                                titleStr = '继续计算';
+                            } else {
+                                // 正常公式
+                                if (c < prevRow.length && c < prevPrevRow.length) {
+                                    let a1 = prevRow[0].toFixed(2);
+                                    let a2 = (c < prevRow.length) ? prevRow[c].toFixed(2) : '0';
+                                    let b1 = prevPrevRow[0].toFixed(2);
+                                    let b2 = (c < prevPrevRow.length) ? prevPrevRow[c].toFixed(2) : '0';
+                                    titleStr = `= (${a1} * ${b2} - ${a2} * ${b1}) / ${a1} = ${valStr}`;
+                                } else {
+                                    titleStr = `计算得到 ${valStr}`;
+                                }
+                            }
+                        }
+                        html += `<td title="${titleStr}">${valStr}</td>`;
+                    }
+                    html += '</tr>';
+                }
+                html += '</tbody>';
+                document.getElementById('routhTable').innerHTML = html;
+            },
+            drawRoots(roots) {
+                let canvas = document.getElementById('rootCanvas');
+                let ctx = canvas.getContext('2d');
+                let w = canvas.width, h = canvas.height;
+                ctx.clearRect(0,0,w,h);
+                let realParts = roots.map(r=>r.re);
+                let imagParts = roots.map(r=>Math.abs(r.im));
+                let maxR = Math.max(1, ...realParts.map(Math.abs), 2);
+                let maxI = Math.max(1, ...imagParts, 2);
+                let scaleX = (w-80) / (2*maxR);
+                let scaleY = (h-50) / (2*maxI);
+                let originX = w/2, originY = h/2;
+                
+                ctx.strokeStyle = '#eef2f8';
+                ctx.lineWidth = 0.5;
+                for (let i=-Math.floor(maxR); i<=Math.floor(maxR); i++) {
+                    let x = originX + i*scaleX;
+                    ctx.beginPath(); ctx.moveTo(x,20); ctx.lineTo(x, h-20); ctx.strokeStyle = '#eef2f8'; ctx.stroke();
+                }
+                for (let i=-Math.floor(maxI); i<=Math.floor(maxI); i++) {
+                    let y = originY - i*scaleY;
+                    ctx.beginPath(); ctx.moveTo(40, y); ctx.lineTo(w-40, y); ctx.strokeStyle = '#eef2f8'; ctx.stroke();
+                }
+                ctx.beginPath(); ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 2;
+                ctx.moveTo(40, originY); ctx.lineTo(w-40, originY);
+                ctx.moveTo(originX, 20); ctx.lineTo(originX, h-20);
+                ctx.stroke();
+                ctx.beginPath(); ctx.strokeStyle = '#f1c40f'; ctx.setLineDash([5,5]);
+                ctx.moveTo(originX,20); ctx.lineTo(originX,h-20); ctx.stroke();
+                ctx.setLineDash([]);
+                
+                roots.forEach(r => {
+                    let x = originX + r.re * scaleX;
+                    let y = originY - r.im * scaleY;
+                    ctx.beginPath();
+                    if (r.re < -1e-8) ctx.fillStyle = '#3498db';
+                    else if (r.re > 1e-8) ctx.fillStyle = '#e74c3c';
+                    else ctx.fillStyle = '#f39c12';
+                    ctx.arc(x, y, 6, 0, 2*Math.PI);
+                    ctx.fill();
+                    ctx.strokeStyle = 'white'; ctx.lineWidth = 2; ctx.stroke();
+                });
+            }
+        }
+    });
+})();
+</script>
+</body>
+</html>

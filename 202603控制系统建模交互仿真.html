@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>控制系统建模 · 微分方程↔传递函数 · 显性参数 + 阻尼器动画</title>
+    <style>
+        * { box-sizing: border-box; font-family: 'Segoe UI', Roboto, system-ui, sans-serif; margin: 0; padding: 0; }
+        body { background: #f0f3f7; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        .main-container { max-width: 1400px; width: 100%; background: white; border-radius: 32px; box-shadow: 0 20px 40px rgba(0,20,40,0.2); padding: 24px; }
+
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 15px; }
+        /* 让 h1 占据剩余空间并居中 */
+        .header h1 { flex: 1; text-align: center; font-size: 1.8rem; font-weight: 400; color: #1e2f4d; letter-spacing: -0.5px; margin: 0; }
+        .global-controls { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .speed-control { display: flex; align-items: center; gap: 8px; background: #e9ecf0; padding: 8px 16px; border-radius: 40px; }
+        .speed-control label { font-weight: 500; color: #2a405c; }
+        .speed-control input { width: 140px; }
+        .reset-btn { background: #1e2f4d; color: white; border: none; padding: 8px 24px; border-radius: 40px; font-weight: 600; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 8px rgba(0,0,0,0.1); }
+        .reset-btn:hover { background: #0f1e33; transform: scale(0.98); }
+
+        .row-systems { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+        .card { background: #f9fbfe; border-radius: 28px; padding: 20px; box-shadow: inset 0 0 0 1px rgba(255,255,255,0.8), 0 8px 18px rgba(0,20,40,0.08); }
+        .system-title { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+        .system-title h2 { font-weight: 500; font-size: 1.5rem; }
+        .msd-title { color: #0077be; border-left: 5px solid #0077be; padding-left: 12px; }
+        .rlc-title { color: #c96b2e; border-left: 5px solid #c96b2e; padding-left: 12px; }
+        .sys-reset { background: none; border: 1px solid #b0c4de; border-radius: 30px; padding: 4px 12px; cursor: pointer; font-size: 0.8rem; transition: 0.2s; }
+        .sys-reset:hover { background: #dbe6f0; }
+
+        .anim-canvas { display: block; width: 100%; height: 150px; background: #ffffff; border-radius: 24px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); margin: 10px 0 15px; border: 1px solid #e2eaf2; }
+
+        .param-group { display: flex; flex-direction: column; gap: 12px; background: #eef3f9; padding: 15px; border-radius: 24px; margin: 12px 0; }
+        .slider-item { display: flex; align-items: center; gap: 8px; }
+        .slider-item label { width: 35px; font-weight: 600; color: #2e4b6b; }
+        .slider-item input[type=range] { flex: 1; height: 6px; border-radius: 10px; }
+        .slider-item span { min-width: 45px; text-align: right; font-family: 'Courier New', monospace; background: #d9e2ef; padding: 2px 8px; border-radius: 30px; }
+
+        .math-block { background: #e4ebf5; padding: 12px 16px; border-radius: 24px; font-size: 1rem; margin: 10px 0; font-family: 'Times New Roman', serif; box-shadow: inset 0 1px 3px #b0c4de; }
+        .math-block .label { font-weight: 600; color: #1d3e63; margin-right: 10px; }
+        .formula-line { font-size: 0.85rem; color: #2e4b6b; margin-top: 4px; border-top: 1px dashed #b0c4de; padding-top: 4px; }
+        .damping-badge { display: inline-block; background: #2e4b6b; color: white; border-radius: 40px; padding: 2px 12px; font-size: 0.8rem; margin-left: 8px; }
+
+        .plot-canvas { width: 100%; height: 150px; background: #ffffff; border-radius: 16px; border: 1px solid #bdc9d8; margin-top: 12px; }
+
+        .signal-panel { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; background: #dee8f2; padding: 12px; border-radius: 30px; margin: 15px 0 5px; }
+        .signal-panel select, .signal-panel input { background: white; border: 1px solid #a1bbd5; border-radius: 40px; padding: 6px 12px; font-size: 0.9rem; outline: none; }
+        .signal-panel input { width: 80px; }
+
+        .zp-container { background: #1e2f4d; border-radius: 28px; padding: 16px; color: white; margin-top: 10px; }
+        .zp-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .zp-header span { font-weight: 300; }
+        .zp-canvas { background: #142433; width: 100%; height: 130px; border-radius: 20px; display: block; }
+
+        .footnote { text-align: center; color: #5a6f88; margin-top: 16px; font-size: 0.9rem; border-top: 1px dashed #cbd6e4; padding-top: 16px; }
+
+        @media (max-width: 800px) { .row-systems { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <!-- 修改后的头部：主标题居中，副标题采用小字体，保留全局控件 -->
+    <div class="header">
+        <h1>
+            <span style="display:block; font-size:1.8rem; font-weight:600;">⏣ 控制系统建模交互仿真</span>
+            <span style="display:block; font-size:1.0rem; font-weight:400;">微分方程 ⇄ 传递函数 · 质量弹簧(带阻尼器) & RLC 显性参数</span>
+        </h1>
+        <div class="global-controls">
+            <div class="speed-control">
+                <label>⏱️ 仿真速度</label>
+                <input type="range" id="globalSpeed" min="0.2" max="2.5" value="1.0" step="0.1">
+                <span id="speedValue">1.0x</span>
+            </div>
+            <button class="reset-btn" id="globalReset">⟲ 全部重置</button>
+        </div>
+    </div>
+
+    <!-- 左右系统栏 (内容保持不变) -->
+    <div class="row-systems">
+        <!-- 左侧 质量-弹簧-阻尼系统 -->
+        <div class="card" id="msdCard">
+            <div class="system-title">
+                <h2 class="msd-title">⚙️ 质量-弹簧-阻尼</h2>
+                <button class="sys-reset" id="resetMSD">重置本系统</button>
+            </div>
+            <canvas id="canvasMSD" class="anim-canvas" width="500" height="150"></canvas>
+            <div class="param-group">
+                <div class="slider-item"><label>m</label><input type="range" id="mSlide" min="0.2" max="4.0" value="1.2" step="0.1"><span id="mVal">1.2</span></div>
+                <div class="slider-item"><label>b</label><input type="range" id="bSlide" min="0.1" max="4.0" value="0.8" step="0.1"><span id="bVal">0.8</span></div>
+                <div class="slider-item"><label>k</label><input type="range" id="kSlide" min="0.3" max="5.0" value="2.0" step="0.1"><span id="kVal">2.0</span></div>
+            </div>
+            <div class="math-block" id="msdMath">
+                <span class="label">微分方程:</span> <span id="msdDE">m·x″ + b·x′ + k·x = f(t)</span><br>
+                <span class="label">传递函数:</span> <span id="msdTF">1/(1.2s²+0.8s+2.0)</span><br>
+                <span class="label">ζ / ωₙ :</span> <span id="msdDampVal">ζ=0.26  ωₙ=1.29</span>
+                <div class="formula-line" id="msdFormula">ωₙ = √(k/m) = 1.29  |  ζ = b/(2√(mk)) = 0.26</div>
+            </div>
+            <canvas id="plotMSD" class="plot-canvas" width="500" height="150"></canvas>
+            <div class="signal-panel" id="msdSignal">
+                <select id="msdInputType">
+                    <option value="step" selected>阶跃</option>
+                    <option value="impulse">脉冲</option>
+                    <option value="sine">正弦</option>
+                </select>
+                <input type="number" id="msdAmp" value="1.0" step="0.1" min="0.1" max="2.0" style="width:70px;" placeholder="幅值">
+                <input type="number" id="msdFreqPulse" value="1.0" step="0.1" min="0.2" max="5.0" style="width:80px;" placeholder="频率/脉宽">
+                <span style="color:#2e4b6b; font-size:0.8rem;" id="msdParamLabel">(Hz)</span>
+            </div>
+        </div>
+
+        <!-- 右侧 RLC电路系统 -->
+        <div class="card" id="rlcCard">
+            <div class="system-title">
+                <h2 class="rlc-title">⚡ RLC 串联电路</h2>
+                <button class="sys-reset" id="resetRLC">重置本系统</button>
+            </div>
+            <canvas id="canvasRLC" class="anim-canvas" width="500" height="150"></canvas>
+            <div class="param-group">
+                <div class="slider-item"><label>R</label><input type="range" id="rSlide" min="0.2" max="4.0" value="1.0" step="0.1"><span id="rVal">1.0</span></div>
+                <div class="slider-item"><label>L</label><input type="range" id="lSlide" min="0.2" max="4.0" value="1.2" step="0.1"><span id="lVal">1.2</span></div>
+                <div class="slider-item"><label>C</label><input type="range" id="cSlide" min="0.2" max="4.0" value="0.8" step="0.1"><span id="cVal">0.8</span></div>
+            </div>
+            <div class="math-block" id="rlcMath">
+                <span class="label">微分方程:</span> <span id="rlcDE">L·C·vc″ + R·C·vc′ + vc = vi(t)</span><br>
+                <span class="label">传递函数:</span> <span id="rlcTF">1/(0.96s²+0.8s+1.0)</span><br>
+                <span class="label">ζ / ωₙ :</span> <span id="rlcDampVal">ζ=0.41  ωₙ=1.02</span>
+                <div class="formula-line" id="rlcFormula">ωₙ = 1/√(LC) = 1.02  |  ζ = (R/2)·√(C/L) = 0.41</div>
+            </div>
+            <canvas id="plotRLC" class="plot-canvas" width="500" height="150"></canvas>
+            <div class="signal-panel" id="rlcSignal">
+                <select id="rlcInputType">
+                    <option value="step" selected>阶跃</option>
+                    <option value="impulse">脉冲</option>
+                    <option value="sine">正弦</option>
+                </select>
+                <input type="number" id="rlcAmp" value="1.0" step="0.1" min="0.1" max="2.0" style="width:70px;">
+                <input type="number" id="rlcFreqPulse" value="1.0" step="0.1" min="0.2" max="5.0" style="width:80px;">
+                <span style="color:#2e4b6b; font-size:0.8rem;" id="rlcParamLabel">(Hz)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 零极点图 -->
+    <div class="zp-container">
+        <div class="zp-header">
+            <span>🎯 零极点图 (s平面)  ·  蓝色:MSD  橙色:RLC</span>
+            <span style="font-size:0.8rem;">✖ 极点 (无零点)</span>
+        </div>
+        <canvas id="zpCanvas" class="zp-canvas" width="700" height="130"></canvas>
+    </div>
+
+    <!-- 修改后的底部版权信息 (原说明文字已替换) -->
+    <div class="footnote">
+        2026 ChenXixiang2046. All Rights Reserved  | 设计用于教学演示
+    </div>
+</div>
+
+<script>
+(function() {
+    // ----- 全局参数与状态 -----
+    const speedInput = document.getElementById('globalSpeed');
+    const speedSpan = document.getElementById('speedValue');
+    let speedFactor = 1.0;
+    speedInput.addEventListener('input', () => { speedFactor = parseFloat(speedInput.value); speedSpan.innerText = speedFactor.toFixed(1)+'x'; });
+
+    let isRunning = true;
+
+    // ----- 两个系统的数据结构 -----
+    const msd = {
+        m: 1.2, b: 0.8, k: 2.0,
+        x: 0, v: 0,
+        t: 0,
+        history: { t: [], y: [], u: [] },
+        maxHist: 500,
+        canvas: document.getElementById('canvasMSD'),
+        plotCanvas: document.getElementById('plotMSD'),
+        ctx: document.getElementById('canvasMSD').getContext('2d'),
+        pCtx: document.getElementById('plotMSD').getContext('2d')
+    };
+
+    const rlc = {
+        R: 1.0, L: 1.2, C: 0.8,
+        vc: 0, i: 0,
+        t: 0,
+        history: { t: [], y: [], u: [] },
+        maxHist: 500,
+        canvas: document.getElementById('canvasRLC'),
+        plotCanvas: document.getElementById('plotRLC'),
+        ctx: document.getElementById('canvasRLC').getContext('2d'),
+        pCtx: document.getElementById('plotRLC').getContext('2d')
+    };
+
+    // DOM 元素
+    const mSlide = document.getElementById('mSlide'), mSpan = document.getElementById('mVal');
+    const bSlide = document.getElementById('bSlide'), bSpan = document.getElementById('bVal');
+    const kSlide = document.getElementById('kSlide'), kSpan = document.getElementById('kVal');
+    const rSlide = document.getElementById('rSlide'), rSpan = document.getElementById('rVal');
+    const lSlide = document.getElementById('lSlide'), lSpan = document.getElementById('lVal');
+    const cSlide = document.getElementById('cSlide'), cSpan = document.getElementById('cVal');
+
+    const msdDE = document.getElementById('msdDE');
+    const msdTF = document.getElementById('msdTF');
+    const msdDampVal = document.getElementById('msdDampVal');
+    const msdFormula = document.getElementById('msdFormula');
+
+    const rlcDE = document.getElementById('rlcDE');
+    const rlcTF = document.getElementById('rlcTF');
+    const rlcDampVal = document.getElementById('rlcDampVal');
+    const rlcFormula = document.getElementById('rlcFormula');
+
+    const msdInputType = document.getElementById('msdInputType');
+    const msdAmp = document.getElementById('msdAmp');
+    const msdFreqPulse = document.getElementById('msdFreqPulse');
+    const msdParamLabel = document.getElementById('msdParamLabel');
+
+    const rlcInputType = document.getElementById('rlcInputType');
+    const rlcAmp = document.getElementById('rlcAmp');
+    const rlcFreqPulse = document.getElementById('rlcFreqPulse');
+    const rlcParamLabel = document.getElementById('rlcParamLabel');
+
+    const zpCanvas = document.getElementById('zpCanvas');
+    const zpCtx = zpCanvas.getContext('2d');
+
+    // 滑块事件
+    function updateMSDParams() {
+        msd.m = parseFloat(mSlide.value); mSpan.innerText = msd.m.toFixed(1);
+        msd.b = parseFloat(bSlide.value); bSpan.innerText = msd.b.toFixed(1);
+        msd.k = parseFloat(kSlide.value); kSpan.innerText = msd.k.toFixed(1);
+        updateMSDMath();
+    }
+    function updateRLSParams() {
+        rlc.R = parseFloat(rSlide.value); rSpan.innerText = rlc.R.toFixed(1);
+        rlc.L = parseFloat(lSlide.value); lSpan.innerText = rlc.L.toFixed(1);
+        rlc.C = parseFloat(cSlide.value); cSpan.innerText = rlc.C.toFixed(1);
+        updateRLC_Math();
+    }
+    mSlide.addEventListener('input', updateMSDParams);
+    bSlide.addEventListener('input', updateMSDParams);
+    kSlide.addEventListener('input', updateMSDParams);
+    rSlide.addEventListener('input', updateRLSParams);
+    lSlide.addEventListener('input', updateRLSParams);
+    cSlide.addEventListener('input', updateRLSParams);
+
+    // 更新数学显示 (微分方程改为符号形式，传递函数和阻尼保持数值)
+    function updateMSDMath() {
+        let m = msd.m, b = msd.b, k = msd.k;
+        let omega = Math.sqrt(k/m).toFixed(2);
+        let zeta = (b/(2*Math.sqrt(m*k))).toFixed(2);
+        msdDE.innerText = "m·x″ + b·x′ + k·x = f(t)";
+        msdTF.innerText = `1/(${m.toFixed(1)}s² + ${b.toFixed(1)}s + ${k.toFixed(1)})`;
+        msdDampVal.innerText = `ζ=${zeta}  ωₙ=${omega}`;
+        msdFormula.innerHTML = `ωₙ = √(k/m) = ${omega}  &nbsp; | &nbsp; ζ = b/(2√(mk)) = ${zeta}`;
+    }
+    function updateRLC_Math() {
+        let R = rlc.R, L = rlc.L, C = rlc.C;
+        let a = (L*C).toFixed(2);
+        let b = (R*C).toFixed(2);
+        let omega = (1/Math.sqrt(L*C)).toFixed(2);
+        let zeta = (R/2 * Math.sqrt(C/L)).toFixed(2);
+        rlcDE.innerText = "L·C·vc″ + R·C·vc′ + vc = vi(t)";
+        rlcTF.innerText = `1/(${a}s² + ${b}s + 1.0)`;
+        rlcDampVal.innerText = `ζ=${zeta}  ωₙ=${omega}`;
+        rlcFormula.innerHTML = `ωₙ = 1/√(LC) = ${omega}  &nbsp; | &nbsp; ζ = (R/2)·√(C/L) = ${zeta}`;
+    }
+    updateMSDMath(); updateRLC_Math();
+
+    function updateLabels() {
+        msdParamLabel.innerText = msdInputType.value === 'sine' ? '(Hz)' : '(s)';
+        rlcParamLabel.innerText = rlcInputType.value === 'sine' ? '(Hz)' : '(s)';
+    }
+    msdInputType.addEventListener('change', updateLabels);
+    rlcInputType.addEventListener('change', updateLabels);
+    updateLabels();
+
+    function getInput(type, t, amp, param) {
+        if (type === 'step') return amp;
+        else if (type === 'impulse') {
+            let width = param;
+            if (t < 1e-6) return amp;
+            return (t < width) ? amp : 0;
+        } else {
+            let freq = param;
+            return amp * Math.sin(2 * Math.PI * freq * t);
+        }
+    }
+
+    function resetMSD() { msd.x = 0; msd.v = 0; msd.t = 0; msd.history = { t: [], y: [], u: [] }; }
+    function resetRLC() { rlc.vc = 0; rlc.i = 0; rlc.t = 0; rlc.history = { t: [], y: [], u: [] }; }
+    document.getElementById('resetMSD').addEventListener('click', resetMSD);
+    document.getElementById('resetRLC').addEventListener('click', resetRLC);
+    document.getElementById('globalReset').addEventListener('click', ()=>{ resetMSD(); resetRLC(); });
+
+    const BASE_DT = 0.02;
+
+    function updateMSD(dt) {
+        let m = msd.m, b = msd.b, k = msd.k;
+        let type = msdInputType.value;
+        let amp = parseFloat(msdAmp.value) || 1.0;
+        let param = parseFloat(msdFreqPulse.value) || 1.0;
+        let u = getInput(type, msd.t, amp, param);
+        let dv = (u - b*msd.v - k*msd.x) / m;
+        msd.v += dv * dt;
+        msd.x += msd.v * dt;
+        msd.t += dt;
+        msd.history.t.push(msd.t);
+        msd.history.y.push(msd.x);
+        msd.history.u.push(u);
+        if (msd.history.t.length > msd.maxHist) { msd.history.t.shift(); msd.history.y.shift(); msd.history.u.shift(); }
+    }
+
+    function updateRLC(dt) {
+        let R = rlc.R, L = rlc.L, C = rlc.C;
+        let type = rlcInputType.value;
+        let amp = parseFloat(rlcAmp.value) || 1.0;
+        let param = parseFloat(rlcFreqPulse.value) || 1.0;
+        let vi = getInput(type, rlc.t, amp, param);
+        let di = (vi - rlc.vc - R*rlc.i) / L;
+        let dvc = rlc.i / C;
+        rlc.i += di * dt;
+        rlc.vc += dvc * dt;
+        rlc.t += dt;
+        rlc.history.t.push(rlc.t);
+        rlc.history.y.push(rlc.vc);
+        rlc.history.u.push(vi);
+        if (rlc.history.t.length > rlc.maxHist) { rlc.history.t.shift(); rlc.history.y.shift(); rlc.history.u.shift(); }
+    }
+
+    function drawMSD() {
+        const w = msd.canvas.width, h = msd.canvas.height;
+        const ctx = msd.ctx;
+        ctx.clearRect(0,0,w,h);
+        ctx.strokeStyle = "#ccc"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(0,h/2); ctx.lineTo(w, h/2); ctx.stroke();
+
+        let x = msd.x;
+        let blockX = 150 + x * 30;
+        blockX = Math.min(w-60, Math.max(40, blockX));
+
+        ctx.beginPath(); ctx.strokeStyle = "#0077be"; ctx.lineWidth = 2.5;
+        ctx.moveTo(40, h/2-10);
+        for (let i=0; i<6; i++) {
+            let segX = 70 + i*12;
+            let segY = (i%2) ? h/2-25 : h/2+5;
+            ctx.lineTo(segX, segY);
+        }
+        ctx.lineTo(blockX-20, h/2-10);
+        ctx.stroke();
+
+        ctx.fillStyle = "#b0d4f0"; ctx.shadowColor = "#a0b0c0"; ctx.shadowBlur = 6;
+        ctx.fillRect(blockX-20, h/2-25, 40, 30);
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#1e2f4d"; ctx.lineWidth = 2; ctx.strokeRect(blockX-20, h/2-25, 40, 30);
+
+        const damperXStart = blockX + 20;
+        const damperXEnd = w - 50;
+        const damperY = h/2 + 5;
+
+        ctx.fillStyle = "#8a9bb5";
+        ctx.fillRect(damperXEnd-15, damperY-8, 20, 16);
+        ctx.strokeStyle = "#1e2f4d"; ctx.lineWidth = 1.5;
+        ctx.strokeRect(damperXEnd-15, damperY-8, 20, 16);
+        ctx.beginPath(); ctx.strokeStyle = "#3e5a7a"; ctx.lineWidth = 3;
+        ctx.moveTo(damperXStart, damperY);
+        ctx.lineTo(damperXEnd-15, damperY);
+        ctx.stroke();
+        ctx.fillStyle = "#4d6b8f";
+        ctx.fillRect(damperXEnd-30, damperY-4, 15, 8);
+        ctx.beginPath(); ctx.arc(damperXStart, damperY, 4, 0, 2*Math.PI);
+        ctx.fillStyle = "#6b7f99"; ctx.fill(); ctx.strokeStyle = "#1e2f4d"; ctx.stroke();
+
+        ctx.beginPath(); ctx.strokeStyle = "#d43f1a"; ctx.lineWidth = 2;
+        ctx.moveTo(w-50, h/2-10); ctx.lineTo(w-30, h/2-10); ctx.lineTo(w-35, h/2-15);
+        ctx.moveTo(w-30, h/2-10); ctx.lineTo(w-35, h/2-5);
+        ctx.stroke();
+    }
+
+    function drawRLC() {
+        const w = rlc.canvas.width, h = rlc.canvas.height;
+        const ctx = rlc.ctx;
+        ctx.clearRect(0,0,w,h);
+        ctx.strokeStyle = "#c96b2e"; ctx.lineWidth = 2.2;
+        ctx.beginPath();
+        ctx.moveTo(20, h/2); ctx.lineTo(60, h/2);
+        ctx.arc(70, h/2, 8, 0, 2*Math.PI); ctx.stroke(); ctx.fillStyle = "#fbe49b"; ctx.fill();
+        ctx.beginPath(); ctx.moveTo(78, h/2); ctx.lineTo(120, h/2);
+        for (let i=0; i<4; i++) { ctx.lineTo(130 + i*12, h/2-12); ctx.lineTo(142 + i*12, h/2+12); }
+        ctx.lineTo(190, h/2);
+        for (let i=0; i<3; i++) { ctx.quadraticCurveTo(210 + i*18, h/2-18, 228 + i*18, h/2); }
+        ctx.lineTo(280, h/2);
+        ctx.moveTo(300, h/2-20); ctx.lineTo(300, h/2+20);
+        ctx.moveTo(330, h/2-20); ctx.lineTo(330, h/2+20);
+        ctx.moveTo(330, h/2); ctx.lineTo(370, h/2);
+        ctx.stroke();
+
+        let vc = rlc.vc;
+        let normV = Math.min(1, Math.max(0, (vc+1.5)/3));
+        ctx.fillStyle = `rgba(200, 60, 30, ${normV*0.7})`;
+        ctx.fillRect(302, h/2-18, 26, 36);
+        ctx.fillStyle = "#1e3a5f"; ctx.font = "bold 10px monospace"; ctx.fillText("vc", 310, h/2-25);
+    }
+
+    function drawPlot(sys, canvas, color1, color2) {
+        const w = canvas.width, h = canvas.height;
+        const ctx = sys === msd ? msd.pCtx : rlc.pCtx;
+        ctx.clearRect(0,0,w,h);
+        if (sys.history.t.length < 2) return;
+        let hist = sys.history;
+        let minT = Math.max(0, sys.t - 5);
+        let maxT = sys.t;
+        let pointsY = [], pointsU = [];
+        for (let i=0; i<hist.t.length; i++) {
+            if (hist.t[i] >= minT && hist.t[i] <= maxT) {
+                pointsY.push({x: hist.t[i], y: hist.y[i]});
+                pointsU.push({x: hist.t[i], y: hist.u[i]});
+            }
+        }
+        if (pointsY.length<2) return;
+        let mapX = (t) => (t - minT)/(maxT-minT) * w;
+        let maxY = Math.max(...pointsY.map(p=>p.y), ...pointsU.map(p=>p.y), 0.1);
+        let minY = Math.min(...pointsY.map(p=>p.y), ...pointsU.map(p=>p.y), -0.1);
+        let range = maxY - minY || 1;
+        let mapY = (y) => h - ((y - minY)/range * h);
+        ctx.beginPath(); ctx.strokeStyle = "#ff7b7b"; ctx.lineWidth = 1.8; ctx.setLineDash([5,3]);
+        ctx.moveTo(mapX(pointsU[0].x), mapY(pointsU[0].y));
+        for (let p of pointsU) ctx.lineTo(mapX(p.x), mapY(p.y));
+        ctx.stroke(); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.strokeStyle = color1; ctx.lineWidth = 2.5;
+        ctx.moveTo(mapX(pointsY[0].x), mapY(pointsY[0].y));
+        for (let p of pointsY) ctx.lineTo(mapX(p.x), mapY(p.y));
+        ctx.stroke();
+    }
+
+    function drawZP() {
+        zpCtx.clearRect(0,0,zpCanvas.width, zpCanvas.height);
+        zpCtx.strokeStyle = "#aaa"; zpCtx.lineWidth = 1;
+        zpCtx.beginPath(); zpCtx.moveTo(20,65); zpCtx.lineTo(zpCanvas.width-20,65); zpCtx.stroke();
+        zpCtx.beginPath(); zpCtx.moveTo(zpCanvas.width/2,15); zpCtx.lineTo(zpCanvas.width/2,115); zpCtx.stroke();
+
+        let m=msd.m, b=msd.b, k=msd.k;
+        let disc = b*b - 4*m*k;
+        let real1, imag1, real2, imag2;
+        if (disc >=0) { real1 = (-b)/(2*m); imag1 = 0; real2 = (-b - Math.sqrt(disc))/(2*m); imag2=0; }
+        else { real1 = -b/(2*m); imag1 = Math.sqrt(-disc)/(2*m); real2 = real1; imag2 = -imag1; }
+
+        let a = rlc.L*rlc.C, b_ = rlc.R*rlc.C, c=1;
+        let discR = b_*b_ - 4*a*c;
+        let rReal1, rImag1, rReal2, rImag2;
+        if (discR>=0) { rReal1 = (-b_)/(2*a); rImag1=0; rReal2 = (-b_-Math.sqrt(discR))/(2*a); rImag2=0; }
+        else { rReal1 = -b_/(2*a); rImag1 = Math.sqrt(-discR)/(2*a); rReal2 = rReal1; rImag2 = -rImag1; }
+
+        function mapX(real) { return zpCanvas.width/2 + real * 30; }
+        function mapY(imag) { return 65 - imag * 30; }
+
+        zpCtx.fillStyle = "#3b8bc0"; zpCtx.strokeStyle = "#3b8bc0"; zpCtx.lineWidth = 2;
+        zpCtx.beginPath(); zpCtx.arc(mapX(real1), mapY(imag1), 6, 0, 2*Math.PI); zpCtx.fillStyle = "#3b8bc0"; zpCtx.fill(); zpCtx.strokeStyle="white"; zpCtx.lineWidth=1.5; zpCtx.stroke();
+        zpCtx.beginPath(); zpCtx.arc(mapX(real2), mapY(imag2), 6, 0, 2*Math.PI); zpCtx.fill(); zpCtx.stroke();
+
+        zpCtx.fillStyle = "#c96b2e";
+        zpCtx.beginPath(); zpCtx.arc(mapX(rReal1), mapY(rImag1), 6, 0, 2*Math.PI); zpCtx.fill(); zpCtx.strokeStyle="white"; zpCtx.stroke();
+        zpCtx.beginPath(); zpCtx.arc(mapX(rReal2), mapY(rImag2), 6, 0, 2*Math.PI); zpCtx.fill(); zpCtx.stroke();
+    }
+
+    function animate() {
+        if (isRunning) {
+            let dt = BASE_DT * speedFactor;
+            updateMSD(dt);
+            updateRLC(dt);
+        }
+        drawMSD();
+        drawRLC();
+        drawPlot(msd, msd.plotCanvas, '#0077be', '#ff7b7b');
+        drawPlot(rlc, rlc.plotCanvas, '#c96b2e', '#ff7b7b');
+        drawZP();
+        requestAnimationFrame(animate);
+    }
+    animate();
+
+    window.addEventListener('keydown', (e)=>{ if(e.code === 'Space') { e.preventDefault(); isRunning = !isRunning; }});
+})();
+</script>
+</body>
+</html>

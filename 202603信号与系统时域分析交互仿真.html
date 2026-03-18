@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>信号与系统 - 时域分析交互式仿真</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 15px; background: #f5f5f5; }
+        .container { max-width: 1400px; margin: 0 auto; background: white; padding: 15px; border-radius: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; margin: 10px 0 15px; font-size: 22px; font-weight: 600; }
+        .tabs { display: flex; margin-bottom: 15px; border-bottom: 2px solid #007bff; }
+        .tab { padding: 8px 20px; cursor: pointer; background: none; border: none; color: #666; font-size: 14px; font-weight: 600; margin-right: 4px; border-bottom: 2px solid transparent; }
+        .tab:hover { color: #007bff; }
+        .tab.active { color: #007bff; border-bottom-color: #007bff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin: 15px 0; padding: 12px; background: #f8f9fa; border-radius: 4px; border: 1px solid #e9ecef; }
+        .control-group { display: flex; flex-direction: column; gap: 4px; }
+        label { font-weight: 600; color: #495057; font-size: 12px; }
+        input[type="range"] { width: 100%; height: 4px; background: #ddd; border-radius: 2px; outline: none; -webkit-appearance: none; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; background: #007bff; border-radius: 50%; cursor: pointer; }
+        select { padding: 4px 8px; background: white; color: #333; border: 1px solid #ccc; border-radius: 3px; font-size: 13px; }
+        button { background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 3px; cursor: pointer; font-weight: 600; font-size: 13px; }
+        button:hover { background: #0056b3; }
+        button.secondary { background: #6c757d; }
+        button.secondary:hover { background: #545b62; }
+        canvas { width: 100%; height: 240px; border: 1px solid #ddd; border-radius: 4px; margin: 8px 0; background: #fafafa; }
+        .canvas-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin: 15px 0; }
+        .full-width { grid-column: 1 / -1; }
+        .matlab-code { background: #f8f9fa; padding: 10px; border-radius: 4px; font-family: 'Consolas', 'Monaco', monospace; white-space: pre-wrap; overflow-x: auto; font-size: 12px; line-height: 1.4; border: 1px solid #e9ecef; max-height: 300px; overflow-y: auto; color: #333; }
+        .info { margin: 8px 0; padding: 8px 12px; background: #e7f3ff; border-left: 3px solid #007bff; border-radius: 3px; color: #0056b3; font-size: 13px; }
+        h3 { color: #333; border-bottom: 1px solid #007bff; padding-bottom: 5px; margin: 20px 0 10px; font-size: 16px; font-weight: 600; }
+        .signal-selector { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+        .signal-btn { padding: 4px 10px; background: white; border: 1px solid #ccc; color: #666; border-radius: 3px; cursor: pointer; font-size: 12px; transition: all 0.2s; }
+        .signal-btn:hover { border-color: #007bff; color: #007bff; }
+        .signal-btn.active { background: #007bff; border-color: #007bff; color: white; }
+        @media (max-width: 900px) {
+            .canvas-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>信号与系统时域分析交互仿真</h1>
+
+        <div class="tabs">
+            <button class="tab active" data-tab="basic">基本信号</button>
+            <button class="tab" data-tab="system">二阶系统</button>
+            <button class="tab" data-tab="convolution">信号卷积</button>
+        </div>
+
+        <!-- 基本信号面板 -->
+        <div id="basic" class="tab-content active">
+            <div class="controls">
+                <div class="control-group">
+                    <label>信号类型</label>
+                    <div class="signal-selector">
+                        <button class="signal-btn active" data-signal="unitstep">阶跃</button>
+                        <button class="signal-btn" data-signal="impulse">冲激</button>
+                        <button class="signal-btn" data-signal="exponential">指数</button>
+                        <button class="signal-btn" data-signal="sine">正弦</button>
+                        <button class="signal-btn" data-signal="rect">矩形</button>
+                        <button class="signal-btn" data-signal="triangle">三角</button>
+                        <button class="signal-btn" data-signal="sawtooth">锯齿</button>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>幅度 A</label>
+                    <input type="range" id="basicAmp" min="0.1" max="5" value="1" step="0.1">
+                    <span id="basicAmpVal">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label>频率/常数 ω 或 τ</label>
+                    <input type="range" id="basicParam1" min="0.1" max="20" value="1" step="0.1">
+                    <span id="basicParam1Val">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label>脉宽/频率2</label>
+                    <input type="range" id="basicParam2" min="0" max="5" value="1" step="0.1">
+                    <span id="basicParam2Val">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label>时间偏移 t0</label>
+                    <input type="range" id="basicOffset" min="-5" max="5" value="0" step="0.1">
+                    <span id="basicOffsetVal">0.0</span>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button id="basicUpdate">更新</button>
+                </div>
+            </div>
+
+            <div class="info" id="basicInfo">
+                当前信号：<strong id="currentSignalName">单位阶跃</strong>
+            </div>
+
+            <div class="canvas-grid">
+                <div class="full-width">
+                    <h3>时域波形</h3>
+                    <canvas id="basicCanvas"></canvas>
+                </div>
+            </div>
+
+            <h3>MATLAB 程序</h3>
+            <div class="matlab-code" id="basicMatlab">
+% 基本信号定义
+t = -5:0.001:5;
+A = 1;        % 幅度
+omega = 1;    % 频率
+tau = 1;      % 时间常数/脉宽
+t0 = 0;       % 时移
+
+% 信号类型: unitstep / impulse / exponential / sine / rect / triangle / sawtooth
+x = double(t >= t0);  % 单位阶跃示例
+
+plot(t, x, 'b-', 'LineWidth', 2);
+grid on;
+xlabel('时间 t'); ylabel('幅度');
+title('基本信号波形');
+            </div>
+        </div>
+
+        <!-- 二阶系统面板 -->
+        <div id="system" class="tab-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label>响应类型</label>
+                    <select id="responseType">
+                        <option value="step">阶跃响应</option>
+                        <option value="impulse">冲激响应</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>阻尼比 ζ</label>
+                    <input type="range" id="zeta" min="0" max="2" value="0.5" step="0.05">
+                    <span id="zetaVal">0.50</span>
+                </div>
+                <div class="control-group">
+                    <label>自然频率 ω_n</label>
+                    <input type="range" id="wn" min="0.5" max="10" value="2" step="0.1">
+                    <span id="wnVal">2.0</span>
+                </div>
+                <div class="control-group">
+                    <label>显示时长 (s)</label>
+                    <input type="range" id="sysDuration" min="1" max="30" value="10" step="1">
+                    <span id="sysDurationVal">10</span>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button id="systemUpdate">更新</button>
+                </div>
+            </div>
+
+            <div class="info" id="systemInfo">
+                系统：H(s) = ω_n² / (s² + 2ζω_n s + ω_n²)
+            </div>
+
+            <div class="canvas-grid">
+                <div class="full-width">
+                    <h3>时域响应波形</h3>
+                    <canvas id="systemCanvas"></canvas>
+                </div>
+            </div>
+
+            <h3>MATLAB 程序</h3>
+            <div class="matlab-code" id="systemMatlab">
+% 二阶系统时域响应
+zeta = 0.5;           % 阻尼比
+wn = 2;               % 自然频率 (rad/s)
+
+% 系统传递函数
+num = wn^2;
+den = [1, 2*zeta*wn, wn^2];
+
+% 时间向量
+t = 0:0.001:10;
+
+% 计算响应
+if strcmp(responseType, 'step')
+    [y, t] = step(num, den, t);
+else
+    [y, t] = impulse(num, den, t);
+end
+
+plot(t, y, 'b-', 'LineWidth', 2);
+grid on;
+xlabel('时间 t (s)'); ylabel('响应');
+title(['响应 (ζ=' num2str(zeta) ', ω_n=' num2str(wn) ')']);
+            </div>
+        </div>
+
+        <!-- 信号卷积面板 -->
+        <div id="convolution" class="tab-content">
+            <div class="controls">
+                <div class="control-group">
+                    <label>卷积类型</label>
+                    <select id="convType">
+                        <option value="rectrect">矩形 ⊕ 矩形</option>
+                        <option value="rectsaw">矩形 ⊕ 锯齿</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>信号1幅度 A1</label>
+                    <input type="range" id="convA1" min="0.5" max="3" value="1" step="0.1">
+                    <span id="convA1Val">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label>信号2幅度 A2</label>
+                    <input type="range" id="convA2" min="0.5" max="3" value="1" step="0.1">
+                    <span id="convA2Val">1.0</span>
+                </div>
+                <div class="control-group">
+                    <label>信号1脉宽 T1</label>
+                    <input type="range" id="convT1" min="0.5" max="5" value="2" step="0.1">
+                    <span id="convT1Val">2.0</span>
+                </div>
+                <div class="control-group">
+                    <label>信号2脉宽 T2</label>
+                    <input type="range" id="convT2" min="0.5" max="5" value="2" step="0.1">
+                    <span id="convT2Val">2.0</span>
+                </div>
+                <div class="control-group">
+                    <label>显示时长 (s)</label>
+                    <input type="range" id="convDuration" min="5" max="30" value="10" step="1">
+                    <span id="convDurationVal">10</span>
+                </div>
+                <div class="control-group">
+                    <label>&nbsp;</label>
+                    <button id="convUpdate">计算卷积</button>
+                </div>
+            </div>
+
+            <div class="info" id="convInfo">
+                卷积结果 y(t) = x(t) * h(t)，数值卷积与理论对比
+            </div>
+
+            <div class="canvas-grid">
+                <div>
+                    <h3>信号 x(t)</h3>
+                    <canvas id="convCanvas1"></canvas>
+                </div>
+                <div>
+                    <h3>信号 h(t)</h3>
+                    <canvas id="convCanvas2"></canvas>
+                </div>
+                <div class="full-width">
+                    <h3>卷积结果 y(t)</h3>
+                    <canvas id="convCanvasResult"></canvas>
+                </div>
+            </div>
+
+            <h3>MATLAB 程序</h3>
+            <div class="matlab-code" id="convMatlab">
+% 信号卷积
+t = -5:0.001:5;
+T1 = 2; A1 = 1;   % 信号1参数
+T2 = 2; A2 = 1;   % 信号2参数
+
+% 矩形脉冲信号
+x = A1 * double(abs(t) <= T1/2);
+h = A2 * double(abs(t) <= T2/2);
+
+% 数值卷积
+dt = 0.001;
+y = conv(x, h) * dt;
+t_conv = (0:length(y)-1)*dt - (length(x)-1)/2*dt;
+
+figure;
+subplot(3,1,1); plot(t, x, 'b-', 'LineWidth', 2);
+title('信号 x(t)'); ylabel('幅度'); grid on;
+
+subplot(3,1,2); plot(t, h, 'r-', 'LineWidth', 2);
+title('信号 h(t)'); ylabel('幅度'); grid on;
+
+subplot(3,1,3); plot(t_conv, y, 'g-', 'LineWidth', 2);
+title('卷积结果 y(t) = x(t) * h(t)');
+xlabel('时间 t'); ylabel('幅度'); grid on;
+            </div>
+        </div>
+
+        <button id="exportAll" class="secondary" style="margin-top: 15px;">导出所有数据</button>
+        <!-- 版权信息 -->
+        <div style="text-align: center; margin-top: 25px; padding-top: 10px; border-top: 1px solid #dee2e6; color: #6c757d; font-size: 12px;">
+            2026 ChenXixiang2046. All Rights Reserved  | 设计用于教学演示
+        </div>
+    </div>
+
+    <script>
+        let currentTab = 'basic';
+        let exportDataAll = {};
+
+        // Tab切换
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.onclick = () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById(tab.dataset.tab).classList.add('active');
+                currentTab = tab.dataset.tab;
+            };
+        });
+
+        // === 基本信号模块 ===
+        const basicSignalNames = {
+            'unitstep': '单位阶跃 u(t)',
+            'impulse': '单位冲激 δ(t)',
+            'exponential': '指数信号 e^(-t/τ)',
+            'sine': '正弦信号 sin(ωt)',
+            'rect': '矩形脉冲 rect(t/T)',
+            'triangle': '三角脉冲 tri(t/T)',
+            'sawtooth': '锯齿信号 sawtooth(ωt)'
+        };
+        let currentBasicSignal = 'unitstep';
+
+        document.querySelectorAll('.signal-btn').forEach(btn => {
+            btn.onclick = function() {
+                document.querySelectorAll('.signal-btn').forEach(b => b.classList.remove('active'));
+                this.classList.add('active');
+                currentBasicSignal = this.dataset.signal;
+                document.getElementById('currentSignalName').textContent = basicSignalNames[currentBasicSignal];
+                updateBasic();
+            };
+        });
+
+        function generateBasicSignal(t, type, A, p1, p2, offset = 0) {
+            switch(type) {
+                case 'unitstep':
+                    return t.map(ti => ti >= offset ? A : 0);
+                case 'impulse':
+                    return t.map(ti => Math.abs(ti - offset) < 0.05 ? A/0.1 : 0);
+                case 'exponential':
+                    return t.map(ti => ti >= offset ? A * Math.exp(-(ti - offset)/p1) : 0);
+                case 'sine':
+                    return t.map(ti => A * Math.sin(p1 * (ti - offset)));
+                case 'rect':
+                    return t.map(ti => Math.abs(ti - offset) <= p1/2 ? A : 0);
+                case 'triangle':
+                    return t.map(ti => {
+                        const d = Math.abs(ti - offset);
+                        return d <= p1/2 ? A * (1 - 2*d/p1) : 0;
+                    });
+                case 'sawtooth':
+                    return t.map(ti => {
+                        const T = p1 || 2*Math.PI;
+                        const phase = ((ti - offset) + T/2) % T - T/2;
+                        return A * (2*phase/T);
+                    });
+                default:
+                    return t.map(() => 0);
+            }
+        }
+
+        function niceNumber(range) {
+            if (range === 0) return 1;
+            const exponent = Math.floor(Math.log10(range));
+            const fraction = range / Math.pow(10, exponent);
+            let niceFraction;
+            if (fraction <= 1) niceFraction = 1;
+            else if (fraction <= 2) niceFraction = 2;
+            else if (fraction <= 5) niceFraction = 5;
+            else niceFraction = 10;
+            return niceFraction * Math.pow(10, exponent);
+        }
+
+        function drawSignal(canvasId, t, y, color = '#007bff', xLabel = '时间 t', yLabel = '幅度', fixedYRange = null) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            const margin = { left: 60, right: 30, top: 20, bottom: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            // 坐标轴固定范围，不随数据跳动
+            const xMin = 0;
+            const xMax = 10; // 固定X轴 0-10秒
+            const yMin = fixedYRange ? fixedYRange[0] : (Math.min(...y) - 0.5);
+            const yMax = fixedYRange ? fixedYRange[1] : (Math.max(...y) + 0.5);
+
+            // 计算nice tick间隔（基于固定范围）
+            const xStep = niceNumber(xMax / 5) || 2;
+            const yRange = yMax - yMin || 1;
+            const yStep = niceNumber(yRange / 5) || 1;
+
+            // Grid
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.5;
+
+            for (let val = 0; val <= xMax; val += xStep) {
+                const x = margin.left + (val / xMax) * plotW;
+                ctx.beginPath(); ctx.moveTo(x, margin.top); ctx.lineTo(x, h - margin.bottom); ctx.stroke();
+            }
+            for (let val = yMin; val <= yMax; val += yStep) {
+                const y = h - margin.bottom - ((val - yMin)/(yMax - yMin)) * plotH;
+                ctx.beginPath(); ctx.moveTo(margin.left, y); ctx.lineTo(w - margin.right, y); ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+
+            // Axis
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, margin.top);
+            ctx.lineTo(margin.left, h - margin.bottom);
+            ctx.lineTo(w - margin.right, h - margin.bottom);
+            ctx.stroke();
+
+            // X ticks
+            ctx.fillStyle = '#666';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let i = 0; i <= 5; i++) {
+                const val = xMin + (i/5)*(xMax - xMin);
+                const x = margin.left + (i/5) * plotW;
+                ctx.fillText(val.toFixed(1), x, h - margin.bottom + 5);
+            }
+
+            // Y ticks
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= 5; i++) {
+                const val = yMin + (i/5)*(yMax - yMin);
+                const y = h - margin.bottom - (i/5)*plotH;
+                ctx.fillText(val.toFixed(2), margin.left - 5, y);
+            }
+
+            // Plot（只显示0-10秒，坐标轴固定）
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            let first = true;
+            for (let i = 0; i < t.length; i++) {
+                const ti = t[i];
+                if (ti < 0 || ti > xMax) continue; // 只绘制0到xMax范围
+                const x = margin.left + (ti/xMax) * plotW;
+                const sy = h - margin.bottom - ((y[i] - yMin)/(yMax - yMin)) * plotH;
+                if (first) { ctx.moveTo(x, sy); first = false; }
+                else { ctx.lineTo(x, sy); }
+            }
+            ctx.stroke();
+
+            // Axis labels
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(xLabel, w/2, h - 8);
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText(yLabel, 0, 0);
+            ctx.restore();
+        }
+
+        function updateBasic() {
+            const A = parseFloat(document.getElementById('basicAmp').value);
+            const p1 = parseFloat(document.getElementById('basicParam1').value);
+            const p2 = parseFloat(document.getElementById('basicParam2').value);
+            const offset = parseFloat(document.getElementById('basicOffset').value);
+            document.getElementById('basicAmpVal').textContent = A.toFixed(1);
+            document.getElementById('basicParam1Val').textContent = p1.toFixed(1);
+            document.getElementById('basicParam2Val').textContent = p2.toFixed(1);
+            document.getElementById('basicOffsetVal').textContent = offset.toFixed(1);
+
+            // 时间范围：-5到15秒，确保能显示偏移后的信号
+            const t = [];
+            const y = [];
+            for (let ti = -5; ti <= 15; ti += 0.001) {
+                t.push(ti);
+                y.push(generateBasicSignal([ti], currentBasicSignal, A, p1, p2, offset)[0]);
+            }
+
+            // 固定Y轴范围便于观察变化
+            let yMinFixed = -0.5, yMaxFixed = 2.5;
+            if (currentBasicSignal === 'sine' || currentBasicSignal === 'exponential') {
+                yMinFixed = -A - 0.5; yMaxFixed = A + 0.5;
+            } else if (currentBasicSignal === 'square' || currentBasicSignal === 'rect' || currentBasicSignal === 'triangle') {
+                yMinFixed = -0.1; yMaxFixed = A + 0.5;
+            } else if (currentBasicSignal === 'sawtooth') {
+                yMinFixed = -A - 0.5; yMaxFixed = A + 0.5;
+            }
+
+            drawSignalFixed('basicCanvas', t, y, '#007bff', '时间 t', '幅度', 0, 10, yMinFixed, yMaxFixed);
+            updateBasicMatlab(currentBasicSignal, A, p1, p2, offset);
+        }
+
+        function updateBasicMatlab(type, A, p1, p2, offset = 0) {
+            let code = '% 基本信号定义\n';
+            code += `t = -5:0.001:15;  % 时间范围\n`;
+            code += `A = ${A};    % 幅度\n`;
+            code += `omega = ${p1}; % 频率/常数\n`;
+            code += `tau = ${p2};  % 脉宽/时移\n`;
+            code += `t0 = ${offset.toFixed(1)}; % 时间偏移\n\n`;
+            code += 'switch signalType\n';
+            code += "    case 'unitstep', x = A * double(t >= t0);\n";
+            code += "    case 'impulse',  x = A * (abs(t - t0) < 0.05) / 0.1;\n";
+            code += "    case 'exponential', x = A * exp(-(t-t0)/tau) .* (t>=t0);\n";
+            code += "    case 'sine', x = A * sin(omega * (t - t0));\n";
+            code += "    case 'rect', x = A * (abs(t - t0) <= tau/2);\n";
+            code += "    case 'triangle', x = A * max(1 - abs(t-t0)/tau, 0);\n";
+            code += "    case 'sawtooth', x = A * sawtooth(omega * (t - t0));\n";
+            code += 'end\n\n';
+            code += 'plot(t, x, \'b-\', \'LineWidth\', 2);\n';
+            code += 'grid on; xlabel(\'时间 t\'); ylabel(\'幅度\');\n';
+            code += `title(['信号: ', signalType, ' (偏移=', num2str(t0), ')']);`;
+            document.getElementById('basicMatlab').textContent = code;
+            exportDataAll.basic = { t, y, params: { type, A, p1, p2, offset } };
+        }
+
+        // === 二阶系统模块 ===
+        function computeSecondOrderImpulse(t, zeta, wn) {
+            let h = [];
+            for (let ti of t) {
+                if (ti < 0) {
+                    h.push(0);
+                } else {
+                    if (zeta < 1) {
+                        // 欠阻尼
+                        const omega_d = wn * Math.sqrt(1 - zeta*zeta);
+                        const term = Math.exp(-zeta*wn*ti) * Math.sin(omega_d*ti);
+                        h.push(wn*wn/omega_d * term);
+                    } else if (zeta === 1) {
+                        // 临界阻尼
+                        h.push(wn*wn * ti * Math.exp(-wn*ti));
+                    } else {
+                        // 过阻尼
+                        const alpha = wn * zeta;
+                        const beta = wn * Math.sqrt(zeta*zeta - 1);
+                        const s1 = -alpha + beta;
+                        const s2 = -alpha - beta;
+                        h.push( (wn*wn/(2*beta)) * (Math.exp(s1*ti) - Math.exp(s2*ti)) );
+                    }
+                }
+            }
+            return h;
+        }
+
+        function computeSecondOrderStep(impulse, dt) {
+            const step = [];
+            let sum = 0;
+            for (let i = 0; i < impulse.length; i++) {
+                sum += impulse[i] * dt;
+                step.push(sum);
+            }
+            return step;
+        }
+
+        function updateSystem() {
+            const zeta = parseFloat(document.getElementById('zeta').value);
+            const wn = parseFloat(document.getElementById('wn').value);
+            const duration = parseFloat(document.getElementById('sysDuration').value);
+            const type = document.getElementById('responseType').value;
+
+            document.getElementById('zetaVal').textContent = zeta.toFixed(2);
+            document.getElementById('wnVal').textContent = wn.toFixed(1);
+            document.getElementById('sysDurationVal').textContent = duration;
+
+            const t = [];
+            for (let ti = 0; ti <= duration; ti += 0.001) {
+                t.push(ti);
+            }
+
+            const dt = 0.001;
+            const h = computeSecondOrderImpulse(t, zeta, wn);
+            const response = type === 'step' ? computeSecondOrderStep(h, dt) : h;
+
+            // 固定Y轴范围（坐标轴不跳动）
+            let yMinFixed, yMaxFixed;
+            if (type === 'step') {
+                yMinFixed = 0;
+                yMaxFixed = 2; // 阶跃响应稳态为1，超调最大约1.5，固定范围[0,2]
+            } else {
+                yMinFixed = 0;
+                yMaxFixed = wn; // 冲激响应峰值约等于 wn (欠阻尼时)
+            }
+
+            drawSignalFixed('systemCanvas', t, response, '#007bff', '时间 t (s)', '响应', 0, duration, yMinFixed, yMaxFixed);
+            updateSystemMatlab(zeta, wn, type, duration);
+        }
+
+        function drawSignalFixed(canvasId, t, y, color, xLabel, yLabel, xMin, xMax, yMinFixed, yMaxFixed) {
+            const canvas = document.getElementById(canvasId);
+            const w = canvas.width = canvas.clientWidth;
+            const h = canvas.height = canvas.clientHeight;
+            const margin = { left: 60, right: 30, top: 20, bottom: 50 };
+            const plotW = w - margin.left - margin.right;
+            const plotH = h - margin.top - margin.bottom;
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, w, h);
+
+            // 如果未指定 xMin/xMax，则使用默认（0到max(t)）
+            if (typeof xMin === 'undefined') xMin = 0;
+            if (typeof xMax === 'undefined') xMax = Math.max(...t);
+
+            // Grid（固定间隔）
+            ctx.strokeStyle = '#e0e0e0';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = 0.5;
+            const xRange = xMax - xMin;
+            const xStep = niceNumber(xRange / 5) || 1;
+            const yStep = niceNumber((yMaxFixed - yMinFixed) / 5);
+
+            for (let val = xMin; val <= xMax; val += xStep) {
+                const x = margin.left + ((val - xMin)/xRange) * plotW;
+                ctx.beginPath(); ctx.moveTo(x, margin.top); ctx.lineTo(x, h - margin.bottom); ctx.stroke();
+            }
+            for (let val = yMinFixed; val <= yMaxFixed; val += yStep) {
+                const y = h - margin.bottom - ((val - yMinFixed)/(yMaxFixed - yMinFixed)) * plotH;
+                ctx.beginPath(); ctx.moveTo(margin.left, y); ctx.lineTo(w - margin.right, y); ctx.stroke();
+            }
+            ctx.globalAlpha = 1;
+
+            // Axis
+            ctx.strokeStyle = '#333';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.moveTo(margin.left, margin.top);
+            ctx.lineTo(margin.left, h - margin.bottom);
+            ctx.lineTo(w - margin.right, h - margin.bottom);
+            ctx.stroke();
+
+            // X ticks
+            ctx.fillStyle = '#666';
+            ctx.font = '11px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'top';
+            for (let i = 0; i <= 5; i++) {
+                const val = xMin + (i/5)*(xMax - xMin);
+                const x = margin.left + (i/5) * plotW;
+                ctx.fillText(val.toFixed(1), x, h - margin.bottom + 5);
+            }
+
+            // Y ticks
+            ctx.textAlign = 'right';
+            ctx.textBaseline = 'middle';
+            for (let i = 0; i <= 5; i++) {
+                const val = yMinFixed + (i/5)*(yMaxFixed - yMinFixed);
+                const y = h - margin.bottom - (i/5)*plotH;
+                ctx.fillText(val.toFixed(2), margin.left - 5, y);
+            }
+
+            // Plot - 只绘制指定X范围内的点
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            let first = true;
+            for (let i = 0; i < t.length; i++) {
+                const ti = t[i];
+                if (ti < xMin || ti > xMax) continue;
+                const x = margin.left + ((ti - xMin)/(xMax - xMin)) * plotW;
+                const sy = h - margin.bottom - ((y[i] - yMinFixed)/(yMaxFixed - yMinFixed)) * plotH;
+                if (first) { ctx.moveTo(x, sy); first = false; }
+                else { ctx.lineTo(x, sy); }
+            }
+            ctx.stroke();
+
+            // Labels
+            ctx.fillStyle = '#333';
+            ctx.font = 'bold 12px sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(xLabel, w/2, h - 8);
+            ctx.save();
+            ctx.translate(15, h/2);
+            ctx.rotate(-Math.PI/2);
+            ctx.fillText(yLabel, 0, 0);
+            ctx.restore();
+        }
+
+        function updateSystemMatlab(zeta, wn, type, duration) {
+            let code = '% 二阶系统时域响应\n';
+            code += `zeta = ${zeta.toFixed(2)};           % 阻尼比\n`;
+            code += `wn = ${wn.toFixed(1)};               % 自然频率 (rad/s)\n`;
+            code += `T_end = ${duration};             % 仿真时长\n\n`;
+            code += '% 系统传递函数\n';
+            code += 'num = wn^2;\n';
+            code += 'den = [1, 2*zeta*wn, wn^2];\n\n';
+            code += 't = 0:0.001:T_end;\n\n';
+            code += `[y, t] = ${type}(num, den, t);\n\n`;
+            code += 'plot(t, y, \'b-\', \'LineWidth\', 2);\n';
+            code += 'grid on; xlabel(\'时间 t (s)\'); ylabel(\'响应\');\n';
+            code += `title(['${type === 'step' ? '阶跃' : '冲激'}响应 (ζ=' num2str(zeta) ', ω_n=' num2str(wn) ')']);\n`;
+            code += 'legend(\'响应\', \'Location\', \'best\');\n\n';
+            code += '% 显式定义系统\n';
+            code += 's = tf(\'s\');\n';
+            code += `sys = wn^2 / (s^2 + 2*zeta*wn*s + wn^2);\n`;
+            code += `% ${type === 'step' ? '阶跃' : '冲激'}响应计算完成`;
+
+            document.getElementById('systemMatlab').textContent = code;
+            exportDataAll.system = { t, y, params: { zeta, wn, type, duration } };
+        }
+
+        // === 卷积模块 ===
+        function generateRect(t, A, T, offset = 0) {
+            return t.map(ti => (ti >= -T/2+offset && ti <= T/2+offset) ? A : 0);
+        }
+
+        function generateSawtooth(t, A, T, offset = 0) {
+            return t.map(ti => {
+                const Tp = T || 2;
+                const p = ((ti - offset + Tp/2) % Tp) - Tp/2;
+                return A * (2*p/Tp);
+            });
+        }
+
+        function convolve(x, h, dt) {
+            const N = x.length;
+            const M = h.length;
+            const result = new Array(N).fill(0);
+            // 标准卷积：y[n] = sum_{k=0}^{N-1} x[k] * h[n-k]
+            for (let n = 0; n < N; n++) {
+                let sum = 0;
+                for (let k = 0; k < N; k++) {
+                    const hIdx = n - k;
+                    if (hIdx >= 0 && hIdx < M) {
+                        sum += x[k] * h[hIdx];
+                    }
+                }
+                result[n] = sum * dt;
+            }
+            return result;
+        }
+
+        function updateConvolution() {
+            const type = document.getElementById('convType').value;
+            const A1 = parseFloat(document.getElementById('convA1').value);
+            const A2 = parseFloat(document.getElementById('convA2').value);
+            const T1 = parseFloat(document.getElementById('convT1').value);
+            const T2 = parseFloat(document.getElementById('convT2').value);
+            const duration = parseFloat(document.getElementById('convDuration').value);
+
+            document.getElementById('convA1Val').textContent = A1.toFixed(1);
+            document.getElementById('convA2Val').textContent = A2.toFixed(1);
+            document.getElementById('convT1Val').textContent = T1.toFixed(1);
+            document.getElementById('convT2Val').textContent = T2.toFixed(1);
+
+            // 时间范围：对称，足够显示完整卷积
+            const start = -duration/2, end = duration/2;
+            const t = [];
+            const x = [];
+            for (let ti = start; ti <= end; ti += 0.001) {
+                t.push(ti);
+                x.push(generateRect([ti], A1, T1, 0)[0]);
+            }
+
+            const h = [];
+            if (type === 'rectrect') {
+                for (let ti of t) h.push(generateRect([ti], A2, T2, 0)[0]);
+            } else {
+                for (let ti of t) h.push(generateSawtooth([ti], A2, T2, T2/2)[0]);
+            }
+
+            const y = convolve(x, h, 0.001);
+
+            // 固定Y轴范围（便于观察变化，不跳动）
+            const yMinFixed = 0;
+            const yMaxFixed = A1 * A2 * (T1 + T2) * 1.1; // 理论最大值估算
+
+            const convXMin = -duration/2, convXMax = duration/2;
+            drawSignalFixed('convCanvas1', t, x, '#007bff', '时间 t', '幅度', convXMin, convXMax, -0.1, A1+0.1);
+            drawSignalFixed('convCanvas2', t, h, '#28a745', '时间 t', '幅度', convXMin, convXMax, -0.1, A2+0.1);
+            drawSignalFixed('convCanvasResult', t, y, '#dc3545', '时间 t', '卷积幅度', convXMin, convXMax, yMinFixed, yMaxFixed);
+
+            updateConvolutionMatlab(type, A1, A2, T1, T2);
+        }
+
+        function updateConvolutionMatlab(type, A1, A2, T1, T2) {
+            let code = '% 信号卷积\n';
+            code += 't = -5:0.001:5;\n';
+            code += `T1 = ${T1}; A1 = ${A1};   % 信号1\n`;
+            code += `T2 = ${T2}; A2 = ${A2};   % 信号2\n\n`;
+            code += '% 矩形脉冲\n';
+            code += 'x = A1 * (abs(t) <= T1/2);\n';
+            code += `h = A2 * (abs(t) <= T2/2); % ${type === 'rectrect' ? '矩形' : '锯齿'}信号2\n\n`;
+            code += '% 数值卷积\n';
+            code += 'dt = 0.001;\n';
+            code += 'y = conv(x, h) * dt;\n';
+            code += 't_conv = (0:length(y)-1)*dt - (length(x)-1)/2*dt;\n\n';
+            code += 'figure;\n';
+            code += 'subplot(3,1,1); plot(t, x, \'b-\', \'LineWidth\', 2);\n';
+            code += 'title(\'信号 x(t)\'); ylabel(\'幅度\'); grid on;\n\n';
+            code += 'subplot(3,1,2); plot(t, h, \'r-\', \'LineWidth\', 2);\n';
+            code += 'title(\'信号 h(t)\'); ylabel(\'幅度\'); grid on;\n\n';
+            code += 'subplot(3,1,3); plot(t_conv, y, \'g-\', \'LineWidth\', 2);\n';
+            code += 'title(\'卷积结果\'); xlabel(\'时间 t\'); ylabel(\'幅度\'); grid on;';
+            document.getElementById('convMatlab').textContent = code;
+            exportDataAll.conv = { t, x, h, y, params: { type, A1, A2, T1, T2, duration } };
+        }
+
+        // === 事件绑定 ===
+        document.getElementById('basicUpdate').onclick = updateBasic;
+        document.getElementById('systemUpdate').onclick = updateSystem;
+        document.getElementById('convUpdate').onclick = updateConvolution;
+
+        const sliderIds = ['basicAmp','basicParam1','basicParam2','basicOffset','zeta','wn','sysDuration','convA1','convA2','convT1','convT2'];
+        sliderIds.forEach(id => {
+            const el = document.getElementById(id);
+            el.oninput = function() {
+                const valSpan = id + 'Val';
+                const span = document.getElementById(valSpan);
+                if (span) span.textContent = parseFloat(el.value).toFixed(
+                    id.includes('Duration') || id === 'convDuration' ? 0 : (id === 'zeta' ? 2 : 1)
+                );
+                if (currentTab === 'basic') updateBasic();
+                else if (currentTab === 'system') updateSystem();
+                else if (currentTab === 'convolution') updateConvolution();
+            };
+        });
+
+        document.getElementById('responseType').onchange = updateSystem;
+        document.getElementById('convType').onchange = updateConvolution;
+
+        document.getElementById('exportAll').onclick = function() {
+            const blob = new Blob([JSON.stringify(exportDataAll, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = '信号与系统仿真数据_' + new Date().toISOString().slice(0,19).replace(/[:T]/g,'_') + '.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        };
+
+        // 初始化
+        updateBasic();
+        updateSystem();
+        updateConvolution();
+    </script>
+</body>
+</html>
